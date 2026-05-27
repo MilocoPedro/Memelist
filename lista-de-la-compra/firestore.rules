@@ -30,15 +30,18 @@ service cloud.firestore {
 
     // Validates list creation and properties
     function isValidList(data) {
-      return data.keys().hasAll(['id', 'name', 'ownerId', 'ownerEmail', 'sharedWith', 'createdAt', 'updatedAt', 'isArchived'])
-        && data.keys().size() == 8
-        && data.id is string && data.id.size() <= 128
-        && data.name is string && data.name.size() > 0 && data.name.size() <= 100
-        && data.ownerId is string && data.ownerId == request.auth.uid
-        && data.ownerEmail is string && data.ownerEmail.size() <= 200
-        && data.sharedWith is list
-        && data.isArchived is bool;
-    }
+  let requiredKeys = ['id', 'name', 'ownerId', 'ownerEmail', 'sharedWith', 'createdAt', 'updatedAt', 'isArchived'];
+  let optionalKeys = ['color', 'icon', 'description'];
+  let allAllowedKeys = requiredKeys.concat(optionalKeys);
+  return data.keys().hasAll(requiredKeys)
+    && data.keys().hasOnly(allAllowedKeys)
+    && data.id is string && data.id.size() <= 128
+    && data.name is string && data.name.size() > 0 && data.name.size() <= 100
+    && data.ownerId is string && data.ownerId == request.auth.uid
+    && data.ownerEmail is string && data.ownerEmail.size() <= 200
+    && data.sharedWith is list
+    && data.isArchived is bool;
+}
 
     // Validates shopping item properties
     // Required fields: 10 core fields. Optional: addedByName, imageUrl

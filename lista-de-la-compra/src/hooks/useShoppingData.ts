@@ -31,11 +31,15 @@ export function useShoppingData(user: { uid: string; email: string; displayName?
   // Handle Firestore errors gracefully and trigger automatic recovery to Local Storage mode
   useEffect(() => {
     const handleE = (e: Event) => {
-      const detail = (e as CustomEvent).detail;
-      console.warn("Activating resilient Local Storage fallback due to handled Firestore event:", detail);
-      setDbError(detail);
-      setUseLocalOverride(true);
-    };
+  const detail = (e as CustomEvent).detail;
+  setDbError(detail);
+  if (detail?.code !== 'permission-denied') {
+    console.warn("Activating local fallback:", detail);
+    setUseLocalOverride(true);
+  } else {
+    console.error("🔴 Firestore permission-denied — verifica las reglas en Firebase Console.");
+  }
+};
     window.addEventListener('firestore-error-handled', handleE);
     return () => window.removeEventListener('firestore-error-handled', handleE);
   }, []);
