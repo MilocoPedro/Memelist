@@ -9,7 +9,7 @@ const firebaseConfig = {
   messagingSenderId: "795299984110",
   appId: "1:795299984110:web:0f77190e7d342287dd79ff",
   measurementId: "G-YRJYV54NTP"
-};
+}; 
 
 export enum OperationType {
   CREATE = 'create',
