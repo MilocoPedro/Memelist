@@ -1,10 +1,9 @@
 {
-  "projectId": "just-chord-5s7sz",
-  "appId": "1:339631496011:web:539af5dfa2ae782c3de6ce",
-  "apiKey": "AIzaSyDoIyHYeP1tYaslbGCK2AnT9pyUjP-QLxs",
-  "authDomain": "just-chord-5s7sz.firebaseapp.com",
-  "firestoreDatabaseId": "ai-studio-51140ba8-48bc-430c-b5af-b57fac3f382e",
-  "storageBucket": "just-chord-5s7sz.firebasestorage.app",
-  "messagingSenderId": "339631496011",
-  "measurementId": ""
+  "apiKey": "AIzaSyCll51GiaeJo0VzpTJPG-lyxelF_oeUbms",
+  "authDomain": "memelist-95059.firebaseapp.com",
+  "projectId": "memelist-95059",
+  "storageBucket": "memelist-95059.firebasestorage.app",
+  "messagingSenderId": "795299984110",
+  "appId": "1:795299984110:web:0f77190e7d342287dd79ff",
+  "measurementId": "G-YRJYV54NTP"
 }
