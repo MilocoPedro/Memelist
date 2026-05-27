@@ -1,7 +1,15 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/auth';
 import { getFirestore, doc, getDocFromServer } from 'firebase/firestore';
-import firebaseConfig from '../firebase-applet-config.json';
+const firebaseConfig = {
+  apiKey: "AIzaSyCll51GiaeJo0VzpTJPG-lyxelF_oeUbms",
+  authDomain: "memelist-95059.firebaseapp.com",
+  projectId: "memelist-95059",
+  storageBucket: "memelist-95059.firebasestorage.app",
+  messagingSenderId: "795299984110",
+  appId: "1:795299984110:web:0f77190e7d342287dd79ff",
+  measurementId: "G-YRJYV54NTP"
+};
 
 export enum OperationType {
   CREATE = 'create',
