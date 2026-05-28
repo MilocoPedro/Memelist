@@ -1,40 +1,153 @@
 ﻿import type { VercelRequest, VercelResponse } from '@vercel/node';
 
-// Mapa de términos de búsqueda → IDs de categoría de Mercadona
-const CATEGORY_MAP: Record<string, number[]> = {
-  leche: [72], lacteo: [72], lacteos: [72],
+// Mapa completo: término normalizado → IDs de subcategoría de Mercadona
+const TERM_TO_CATS: Record<string, number[]> = {
+  // Leche y lácteos
+  leche: [343,344,342,347,350,348,799], lacteo: [343,344,342], lacteos: [343,344,342],
+  semidesnatada: [343], desnatada: [344], entera: [342],
+  sinlactosa: [343,344,342], avena: [347], soja: [347], almendra: [347], arroz: [118,347],
+  batido: [350], horchata: [347], condensada: [799], evaporada: [799],
+  nata: [75], mantequilla: [75], margarina: [75],
+  // Huevos
   huevo: [77], huevos: [77],
-  mantequilla: [75], margarina: [75], nata: [75],
-  fruta: [27], manzana: [27], platano: [27], naranja: [27], fresa: [27], pera: [27], limon: [27], aguacate: [27],
-  verdura: [29], tomate: [29], lechuga: [29], zanahoria: [29], cebolla: [29], patata: [29], pimiento: [29], brocoli: [29],
-  pollo: [38], pechuga: [38], pavo: [38],
-  carne: [37, 38, 40], ternera: [40], cerdo: [37], jamon: [50], chorizo: [51], embutido: [51],
-  pescado: [31], salmon: [31], merluza: [31], atun: [122], marisco: [32], gamba: [32],
-  agua: [156], refresco: [158, 159], cocacola: [158], cerveza: [164], vino: [169, 170, 171],
-  yogur: [103, 104, 105], bifidus: [105],
-  queso: [54, 56], quesos: [54, 56],
-  arroz: [118], pasta: [120], macarrones: [120], espagueti: [120], legumbre: [121], lenteja: [121], garbanzo: [121],
-  galleta: [80], galletas: [80], cereal: [78], cereales: [78], tortita: [79],
-  pan: [59, 60], croissant: [65], bolleria: [65, 66], magdalena: [66],
-  chocolate: [92], dulce: [92, 95, 97], caramelo: [95], mermelada: [90],
-  cafe: [83, 84], infusion: [88], te: [88],
-  aceite: [112], vinagre: [112], sal: [112], salsa: [117], tomate_frito: [126],
-  conserva: [122, 123, 126, 127], atun_lata: [122], berberecho: [123],
-  congelado: [145, 148, 149, 150], helado: [154],
-  champu: [199], gel: [187], jabon: [187], dentifrico: [186], pasta_dientes: [186],
-  detergente: [226], suavizante: [226], lejia: [234], lavavajillas: [229],
-  papel: [238], higienico: [238], celulosa: [238], servilleta: [238],
-  bolsa: [239], basura: [239],
-  toallita: [217], panal: [217], bebe: [216, 217, 218],
-  perro: [221], gato: [222], mascota: [221, 222], pienso: [221, 222],
+  // Yogures y postres
+  yogur: [103,104,105,106,107,108,109], bifidus: [105], yogures: [103,104],
+  flan: [110], natillas: [110], gelatina: [111], postre: [110,111],
+  // Quesos y charcutería
+  queso: [54,56,53], quesos: [54,56], rallado: [56], lonchas: [56], untable: [53],
+  jamon: [50,48], serrano: [50], cocido: [48], pavo: [48],
+  chorizo: [51], salchichon: [51], fuet: [51], lomo: [51], embutido: [51],
+  bacon: [52], salchicha: [52], frankfurt: [52],
+  pate: [58], sobrasada: [58], chopped: [49], mortadela: [49],
+  // Frutas
+  fruta: [27], frutas: [27], manzana: [27], platano: [27], naranja: [27],
+  pera: [27], fresa: [27], fresas: [27], kiwi: [27], melocoton: [27],
+  uva: [27], sandia: [27], melon: [27], cereza: [27], ciruela: [27],
+  mandarina: [27], limon: [27], lima: [27], pomelo: [27], aguacate: [27],
+  mango: [27], pina: [27], granada: [27], higo: [27],
+  // Verduras
+  verdura: [29], verduras: [29], tomate: [29,126], lechuga: [28], ensalada: [28],
+  zanahoria: [29], cebolla: [29], patata: [29], pimiento: [29], brocoli: [29],
+  coliflor: [29], espinaca: [29], acelga: [29], apio: [29], pepino: [29],
+  calabacin: [29], berenjena: [29], alcachofa: [29], esparragos: [29],
+  puerro: [29], nabo: [29], rabano: [29], gustos: [29],
+  // Carne
+  pollo: [38], pechuga: [38], muslo: [38], alita: [38], entero: [38],
+  ternera: [40], vacuno: [40], bistec: [40], filete: [40], entrecot: [40],
+  cerdo: [37], lomo: [37,51], costilla: [37], panceta: [37],
+  cordero: [42], conejo: [42],
+  hamburguesa: [44], picada: [44], albondiga: [44],
+  empanado: [45], nugget: [45], croqueta: [45],
+  carne: [37,38,40,42,44],
+  // Pescado y marisco
+  pescado: [31], salmon: [31], merluza: [31], lubina: [31], dorada: [31],
+  bacalao: [31], trucha: [31], rape: [31], rodaballo: [31],
+  atun: [122], sardina: [122], mejillon: [123], berberecho: [123],
+  marisco: [32], gamba: [32], langostino: [32], almeja: [32], calamar: [32],
+  pulpo: [32], sepia: [32], navaja: [32],
+  ahumado: [36], salmoneado: [36],
+  // Congelados
+  congelado: [145,148,149,150,151,152], congelada: [145,148,149],
+  pizza: [138,151], pizzas: [138,151],
+  helado: [154], helados: [154], hielo: [155],
+  // Agua y bebidas
+  agua: [156], aguas: [156], mineral: [156],
+  refresco: [158,159,161,162], coca: [158], fanta: [159], sprite: [159],
+  tonica: [161], bitter: [161], te: [88,162], limonada: [159],
+  isotonica: [163], energetica: [163], bebida: [156,158,159,163],
+  cerveza: [164], birra: [164], cervezasin: [165],
+  vino: [169,170,171,172], tinto: [169], blanco: [170], rosado: [171],
+  cava: [174], sidra: [174], champan: [174],
+  licor: [181], whisky: [181], ron: [181], vodka: [181], gin: [181],
+  // Zumos
+  zumo: [98,99,100,143], zumos: [98,99,100,143], naranjazumo: [143],
+  // Panadería
+  pan: [59,60,62,64], baguette: [59], hogaza: [59], molde: [60],
+  tostada: [62], tostado: [62], biscote: [62], regañá: [64], pico: [64],
+  croissant: [65], bolleria: [65,66], magdalena: [66], bizcocho: [66],
+  muffin: [66], donut: [66], tarta: [68], pastel: [68],
+  harina: [69], levadura: [69], preparado: [69],
+  // Cereales y galletas
+  galleta: [80], galletas: [80], maria: [80], oreo: [80], digestive: [80],
+  cereal: [78], cereales: [78], corn: [78], muesli: [78], avena: [78,347],
+  tortita: [79], tortitas: [79],
+  // Arroz legumbres pasta
+  macarron: [120], macarrones: [120], espagueti: [120], pasta: [120],
+  fideos: [120], tallarines: [120], lasana: [120], canelones: [120],
+  lenteja: [121], lentejas: [121], garbanzo: [121], garbanzos: [121],
+  alubia: [121], judias: [121], guisante: [121,127],
+  // Aceites salsas especias
+  aceite: [112], oliva: [112], girasol: [112], vinagre: [112], sal: [112],
+  pimienta: [115], oregano: [115], especias: [115], condimento: [115],
+  ketchup: [116], mostaza: [116], mayonesa: [116],
+  salsa: [117], soja: [117,347], tabasco: [117], bbq: [117],
+  // Conservas
+  conserva: [122,123,126,127], lata: [122,123],
+  tomarito: [126], tomarofrito: [126], tomarotriturado: [126], frito: [126],
+  gazpacho: [130], salmorejo: [130], crema: [129,130], sopa: [129], caldo: [129],
+  // Snacks dulces
+  patatasfrita: [132], chips: [132], snack: [132], pipas: [132],
+  aceitunas: [135], encurtidos: [135], pepinillo: [135],
+  frutoseco: [133], almendras: [133], nuez: [133], anacardo: [133],
+  chocolate: [92], tableta: [92], bombones: [92],
+  azucar: [89], edulcorante: [89], stevia: [89],
+  caramelo: [95], chicle: [95], chuche: [97], gominola: [97],
+  mermelada: [90], miel: [90], nocilla: [90], nutella: [90],
+  // Cacao café
+  cafe: [83,84,81], capsula: [81], nespresso: [81], dolce: [81],
+  soluble: [84], molido: [83], grano: [83],
+  cacao: [86], colacao: [86], nesquik: [86], chocolate_bebida: [86],
+  infusion: [88], manzanilla: [88], poleo: [88],
+  // Higiene y cuidado
+  champu: [199], acondicionador: [201], mascarilla: [201], tinte: [203],
+  gel: [187,189], jabonmanos: [187], jabon: [187],
+  dentifrico: [186], cepillo: [186], enjuague: [186], hilo: [186],
+  desodorante: [188], antiperspirant: [188],
+  crema: [185,189], hidratante: [189], locion: [189],
+  afeitado: [192], maquinilla: [192], espuma: [192],
+  colonia: [196], perfume: [196],
+  protectorsolar: [198], solar: [198],
+  // Limpieza hogar
+  detergente: [226], suavizante: [226], quitamanchas: [226],
+  fregasuelos: [233], multiusos: [232], limpiador: [232,233],
+  lejia: [234], amoniaco: [234],
+  limpiacristal: [235], cristales: [235],
+  lavavajillas: [229], bayeta: [237], estropajo: [237], guante: [237],
+  insecticida: [241], ambientador: [241],
+  bolsabasura: [239], pilas: [239], bolsa: [239],
+  papelcocina: [238], higienico: [238], celulosa: [238], servilleta: [238],
+  // Bebés
+  bebe: [216,217,218,219], infantil: [216], papilla: [216],
+  toallita: [217], panal: [217], pañal: [217],
+  biberon: [219], chupete: [219],
+  // Mascotas
+  perro: [221], pienso: [221,222], pellet: [221,222],
+  gato: [222], gatofood: [222],
+  mascota: [221,222,225],
+  // Maquillaje
+  rimmel: [210], mascara: [210], sombra: [210], eyeliner: [210],
+  pintalabios: [208], labial: [208], gloss: [208],
+  colorete: [207], polvos: [207], base: [206], corrector: [206],
+  pincel: [212], brocha: [212],
+  // Fitoterapia
+  vitamina: [213,214], complemento: [213,214], suplemento: [213],
+  melatonina: [213], magnesio: [213],
 };
 
+// Categorías "generales" para búsquedas sin coincidencia exacta
+const GENERAL_CATS = [342, 343, 344, 27, 29, 38, 31, 118, 120, 80, 78, 132, 156, 164, 226, 238];
+
 function getCategoryIds(query: string): number[] {
-  const terms = query.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').split(/\s+/);
+  const normalized = query.toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9\s]/g, '');
+  const terms = normalized.split(/\s+/).filter(t => t.length > 2);
   const ids = new Set<number>();
+
   for (const term of terms) {
-    for (const [key, catIds] of Object.entries(CATEGORY_MAP)) {
-      if (term.includes(key) || key.includes(term)) {
+    for (const [key, catIds] of Object.entries(TERM_TO_CATS)) {
+      const keyNorm = key.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      if (term.includes(keyNorm) || keyNorm.includes(term) || keyNorm.startsWith(term)) {
         catIds.forEach(id => ids.add(id));
       }
     }
@@ -53,7 +166,7 @@ function mapProduct(item: any) {
   }
 
   let unit = 'uds';
-  const unitName = item.price_instructions?.unit_name?.toLowerCase() ?? '';
+  const unitName = (item.price_instructions?.unit_name ?? '').toLowerCase();
   if (unitName.includes('litro') || unitName === 'l') unit = 'l';
   else if (unitName.includes('kilo') || unitName === 'kg') unit = 'kg';
   else if (unitName.includes('gram') || unitName === 'g') unit = 'g';
@@ -65,7 +178,7 @@ function mapProduct(item: any) {
   }
 
   return {
-    id: item.id ?? Math.random().toString(),
+    id: String(item.id ?? Math.random()),
     name: item.display_name ?? item.name ?? '',
     price: price !== null && !isNaN(price) ? price : null,
     priceString: price !== null ? `${price.toFixed(2)} €` : '',
@@ -75,225 +188,100 @@ function mapProduct(item: any) {
   };
 }
 
-const MERCADONA_STATIC_CATALOG = [
-  { name: 'Toallitas WC húmedas Bosque Verde', price: 1.25, unit: 'pack', imageUrl: 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?w=120&q=50', pricePerUnitString: '0.02 €/ud.' },
-  { name: 'Leche semidesnatada Hacendado (6 briks x 1 L)', price: 5.04, unit: 'pack', imageUrl: 'https://images.unsplash.com/photo-1550583724-b2692b85b150?w=120&q=50', pricePerUnitString: '0.84 €/L' },
-  { name: 'Leche entera Hacendado (6 briks x 1 L)', price: 5.76, unit: 'pack', imageUrl: 'https://images.unsplash.com/photo-1563636619-e9143da7973b?w=120&q=50', pricePerUnitString: '0.96 €/L' },
-  { name: 'Leche semidesnatada sin lactosa Hacendado', price: 5.64, unit: 'pack', imageUrl: 'https://images.unsplash.com/photo-1528750994863-10af4dd98e32?w=120&q=50', pricePerUnitString: '0.94 €/L' },
-  { name: 'Leche desnatada Hacendado (6 briks x 1 L)', price: 4.92, unit: 'pack', imageUrl: 'https://images.unsplash.com/photo-1628114264639-577e7f6423cc?w=120&q=50', pricePerUnitString: '0.82 €/L' },
-  { name: 'Leche semidesnatada Hacendado (Brik 1 L)', price: 0.84, unit: 'uds', imageUrl: 'https://images.unsplash.com/photo-1550583724-b2692b85b150?w=120&q=50', pricePerUnitString: '0.84 €/ud.' },
-  { name: 'Leche entera Hacendado (Brik 1 L)', price: 0.96, unit: 'uds', imageUrl: 'https://images.unsplash.com/photo-1563636619-e9143da7973b?w=120&q=50', pricePerUnitString: '0.96 €/ud.' },
-  { name: 'Tomate frito Hacendado', price: 1.20, unit: 'uds', imageUrl: 'https://images.unsplash.com/photo-1590779033100-9f60a05a013d?w=120&q=50', pricePerUnitString: '2.40 €/kg' },
-  { name: 'Papel higiénico Bosque Verde doble rollo', price: 2.85, unit: 'pack', imageUrl: 'https://images.unsplash.com/photo-1584556812952-905ffd0c611a?w=120&q=50', pricePerUnitString: '0.24 €/rollo' },
-  { name: 'Galletas María Hacendado', price: 1.40, unit: 'pack', imageUrl: 'https://images.unsplash.com/photo-1499636136210-6f4ee915583e?w=120&q=50', pricePerUnitString: '1.75 €/kg' },
-  { name: 'Plátano de Canarias', price: 1.59, unit: 'kg', imageUrl: 'https://images.unsplash.com/photo-1571771894821-ce9b6c11b08e?w=120&q=50', pricePerUnitString: '1.59 €/kg' },
-  { name: 'Manzana Golden Hacendado', price: 1.85, unit: 'kg', imageUrl: 'https://images.unsplash.com/photo-1560806887-1e4cd0b6cbd6?w=120&q=50', pricePerUnitString: '1.85 €/kg' },
-  { name: 'Lechuga iceberg fresca', price: 0.99, unit: 'uds', imageUrl: 'https://images.unsplash.com/photo-1622484211148-717498c0b0b8?w=120&q=50', pricePerUnitString: '0.99 €/ud.' },
-  { name: 'Tomate pera ensalada', price: 1.89, unit: 'kg', imageUrl: 'https://images.unsplash.com/photo-1592924357228-91a4daadcfea?w=120&q=50', pricePerUnitString: '1.89 €/kg' },
-  { name: 'Aguacate maduro Hacendado', price: 2.49, unit: 'uds', imageUrl: 'https://images.unsplash.com/photo-1523049673857-eb18f1d7b578?w=120&q=50', pricePerUnitString: '4.98 €/kg' },
-  { name: 'Huevos camperos clase L Hacendado', price: 2.35, unit: 'pack', imageUrl: 'https://images.unsplash.com/photo-1587486913049-53fc88980cfc?w=120&q=50', pricePerUnitString: '0.20 €/ud.' },
-  { name: 'Pechuga de pollo fileteada Hacendado', price: 6.49, unit: 'kg', imageUrl: 'https://images.unsplash.com/photo-1604503468506-a8da13d82791?w=120&q=50', pricePerUnitString: '6.49 €/kg' },
-  { name: 'Bistec de ternera blanca Hacendado', price: 9.95, unit: 'kg', imageUrl: 'https://images.unsplash.com/photo-1603048588665-791ca8aea617?w=120&q=50', pricePerUnitString: '9.95 €/kg' },
-  { name: 'Salmón fresco en rodajas Hacendado', price: 14.99, unit: 'kg', imageUrl: 'https://images.unsplash.com/photo-1467003909585-2f8a72700288?w=120&q=50', pricePerUnitString: '14.99 €/kg' },
-  { name: 'Atún claro en aceite de oliva Hacendado', price: 2.80, unit: 'pack', imageUrl: 'https://images.unsplash.com/photo-1534422298391-e4f8c172dddb?w=120&q=50', pricePerUnitString: '11.20 €/kg' },
-  { name: 'Arroz redondo Hacendado 1kg', price: 1.30, unit: 'uds', imageUrl: 'https://images.unsplash.com/photo-1586201375761-83865001e31c?w=120&q=50', pricePerUnitString: '1.30 €/kg' },
-  { name: 'Macarrones Hacendado pasta de trigo', price: 0.85, unit: 'uds', imageUrl: 'https://images.unsplash.com/photo-1551462147-ff29053bfc14?w=120&q=50', pricePerUnitString: '1.70 €/kg' },
-  { name: 'Aceite de oliva virgen extra Hacendado 1L', price: 8.50, unit: 'l', imageUrl: 'https://images.unsplash.com/photo-1474979266404-7eaacbcd87c5?w=120&q=50', pricePerUnitString: '8.50 €/L' },
-  { name: 'Agua mineral natural Hacendado 1.5L', price: 0.35, unit: 'l', imageUrl: 'https://images.unsplash.com/photo-1523362628745-0c100150b504?w=120&q=50', pricePerUnitString: '0.23 €/L' },
-  { name: 'Cerveza clásica Steinburg lata 33cl', price: 0.38, unit: 'uds', imageUrl: 'https://images.unsplash.com/photo-1567696911980-2eed69a46042?w=120&q=50', pricePerUnitString: '1.15 €/L' },
-  { name: 'Vino tinto Rioja Hacendado', price: 4.50, unit: 'uds', imageUrl: 'https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?w=120&q=50', pricePerUnitString: '6.00 €/L' },
-  { name: 'Yogur desnatado bífidus fresa Hacendado', price: 1.15, unit: 'pack', imageUrl: 'https://images.unsplash.com/photo-1488477181946-6428a0291777?w=120&q=50', pricePerUnitString: '2.30 €/kg' },
-  { name: 'Queso mezcla semicurado Hacendado cuña', price: 3.40, unit: 'uds', imageUrl: 'https://images.unsplash.com/photo-1486887396183-f11c5f5a608a?w=120&q=50', pricePerUnitString: '8.50 €/kg' },
-  { name: 'Patatas fritas extra crujientes Hacendado', price: 1.10, unit: 'uds', imageUrl: 'https://images.unsplash.com/photo-1566478989037-eec170784d22?w=120&q=50', pricePerUnitString: '7.33 €/kg' },
-  { name: 'Croissants de mantequilla pack de 4', price: 1.95, unit: 'pack', imageUrl: 'https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=120&q=50', pricePerUnitString: '0.49 €/ud.' },
-  { name: 'Chocolate negro 85% Hacendado tableta', price: 1.25, unit: 'uds', imageUrl: 'https://images.unsplash.com/photo-1549007994-cb92ca8a7a72?w=120&q=50', pricePerUnitString: '12.50 €/kg' },
-  { name: 'Café soluble nescafé classic', price: 3.65, unit: 'uds', imageUrl: 'https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?w=120&q=50', pricePerUnitString: '36.50 €/kg' },
-  { name: 'Naranjas de zumo bolsa 3kg', price: 2.99, unit: 'kg', imageUrl: 'https://images.unsplash.com/photo-1547514701-42782101795e?w=120&q=50', pricePerUnitString: '1.00 €/kg' },
-  { name: 'Fresas de Huelva tarrina', price: 2.15, unit: 'uds', imageUrl: 'https://images.unsplash.com/photo-1464965911861-746a04b4bca6?w=120&q=50', pricePerUnitString: '4.30 €/kg' },
-  { name: 'Detergente cápsulas lavadora Bosque Verde', price: 3.99, unit: 'pack', imageUrl: 'https://images.unsplash.com/photo-1607344645866-009c320b5ab8?w=120&q=50', pricePerUnitString: '0.20 €/dosis' },
-  { name: 'Pañales bebé talla 4 Deliplus secos', price: 8.50, unit: 'pack', imageUrl: 'https://images.unsplash.com/photo-1544816155-12df9643f363?w=120&q=50', pricePerUnitString: '0.18 €/pañal' },
-  { name: 'Zanahorias bolsa 1kg', price: 0.79, unit: 'kg', imageUrl: 'https://images.unsplash.com/photo-1598170845058-32b9d6a5da37?w=120&q=50', pricePerUnitString: '0.79 €/kg' },
-  { name: 'Cebolla dulce 1kg', price: 1.45, unit: 'kg', imageUrl: 'https://images.unsplash.com/photo-1508747702-f89e0f59ceda?w=120&q=50', pricePerUnitString: '1.45 €/kg' },
-  { name: 'Pienso para carne de perro adulto Hacendado', price: 6.99, unit: 'uds', imageUrl: 'https://images.unsplash.com/photo-1589924691995-400dc9ecc119?w=120&q=50', pricePerUnitString: '1.75 €/kg' },
-  { name: 'Comida húmeda gato buey en salsa Hacendado', price: 0.45, unit: 'uds', imageUrl: 'https://images.unsplash.com/photo-1548767797-d8c844163c4c?w=120&q=50', pricePerUnitString: '4.50 €/kg' },
-];
-
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (req.method !== 'GET') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
-
-  const query = req.query.q;
-  if (!query || typeof query !== 'string' || !query.trim()) {
-    return res.json({ products: [] });
-  }
-
-  const normalizedQuery = query.toLowerCase().trim();
-  const queryTerms = normalizedQuery.split(/\s+/).filter((t) => t.length > 0);
-
-  // ── Intento 1: API live de búsqueda (suele estar bloqueada en Vercel) ──────
+async function fetchCategory(catId: number): Promise<any[]> {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), 5000);
   try {
-    const postalCode = (req.query.postalCode as string) || '45600';
-    const ctrl1 = new AbortController();
-    const t1 = setTimeout(() => ctrl1.abort(), 3000);
-
-    const warehouseRes = await fetch(
-      `https://tienda.mercadona.es/api/v1_1/stores/?postal_code=${postalCode}`,
+    const res = await fetch(
+      `https://tienda.mercadona.es/api/v1_1/categories/${catId}/?lang=es`,
       {
-        signal: ctrl1.signal,
+        signal: ctrl.signal,
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
           'Accept': 'application/json',
           'Accept-Language': 'es-ES,es;q=0.9',
           'referer': 'https://tienda.mercadona.es/',
-          'origin': 'https://tienda.mercadona.es',
         },
       }
     );
-    clearTimeout(t1);
+    clearTimeout(t);
+    if (!res.ok) return [];
+    const data = await res.json();
+    const products: any[] = [];
+    if (Array.isArray(data.categories)) {
+      for (const sub of data.categories) {
+        if (Array.isArray(sub.products)) products.push(...sub.products);
+      }
+    }
+    if (Array.isArray(data.products)) products.push(...data.products);
+    return products;
+  } catch {
+    clearTimeout(t);
+    return [];
+  }
+}
 
-    if (warehouseRes.ok) {
-      const warehouseData = await warehouseRes.json();
-      const warehouseId: string | null = warehouseData?.id ?? warehouseData?.[0]?.id ?? null;
+function scoreProducts(products: any[], queryTerms: string[]): any[] {
+  return products
+    .map(item => {
+      const nameLower = (item.display_name ?? item.name ?? '').toLowerCase()
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      let score = 0;
+      for (const term of queryTerms) {
+        const termNFD = term.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        if (nameLower.startsWith(termNFD)) score += 10;
+        else if (nameLower.includes(termNFD)) score += 5;
+      }
+      return { item, score };
+    })
+    .filter(x => x.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .map(x => x.item);
+}
 
-      if (warehouseId) {
-        const ctrl2 = new AbortController();
-        const t2 = setTimeout(() => ctrl2.abort(), 3000);
-        const searchRes = await fetch(
-          `https://tienda.mercadona.es/api/v1_1/search/?query=${encodeURIComponent(query)}&lang=es&wh=${warehouseId}`,
-          {
-            signal: ctrl2.signal,
-            headers: {
-              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-              'Accept': 'application/json',
-              'Accept-Language': 'es-ES,es;q=0.9',
-              'referer': 'https://tienda.mercadona.es/',
-              'origin': 'https://tienda.mercadona.es',
-            },
-          }
-        );
-        clearTimeout(t2);
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+  if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
 
-        if (searchRes.ok) {
-          const body = await searchRes.json();
-          let rawProducts: any[] = [];
-          if (Array.isArray(body.products)) rawProducts = body.products;
-          else if (Array.isArray(body.results)) rawProducts = body.results;
-          else if (Array.isArray(body.sections)) {
-            for (const sec of body.sections) {
-              if (Array.isArray(sec.products)) rawProducts.push(...sec.products);
-              if (Array.isArray(sec.categories)) {
-                for (const cat of sec.categories) {
-                  if (Array.isArray(cat.products)) rawProducts.push(...cat.products);
-                }
-              }
-            }
-          }
-          const mapped = rawProducts.map(mapProduct).filter((p) => p.name.length > 0);
-          if (mapped.length > 0) {
-            return res.json({ products: mapped.slice(0, 15), source: 'live_mercadona' });
-          }
-        }
+  const query = req.query.q;
+  if (!query || typeof query !== 'string' || !query.trim()) return res.json({ products: [] });
+
+  const normalizedQuery = query.toLowerCase().trim();
+  const queryTerms = normalizedQuery.split(/\s+/).filter(t => t.length > 1);
+
+  // ── Intento 1: API de categorías con detección inteligente ────────────────
+  try {
+    let categoryIds = getCategoryIds(normalizedQuery);
+
+    // Si no hay coincidencia exacta, usar categorías generales
+    if (categoryIds.length === 0) {
+      categoryIds = GENERAL_CATS;
+    }
+
+    // Limitar a máximo 5 categorías para no exceder el tiempo de respuesta
+    const catsToFetch = categoryIds.slice(0, 5);
+
+    const allProductArrays = await Promise.all(catsToFetch.map(fetchCategory));
+    const allProducts = allProductArrays.flat();
+
+    if (allProducts.length > 0) {
+      let filtered = scoreProducts(allProducts, queryTerms);
+
+      // Si no hay coincidencias exactas pero hay productos, devolver los primeros
+      if (filtered.length === 0 && categoryIds !== GENERAL_CATS) {
+        filtered = allProducts.slice(0, 15);
+      }
+
+      const mapped = filtered.slice(0, 15).map(mapProduct).filter(p => p.name.length > 0);
+      if (mapped.length > 0) {
+        return res.json({ products: mapped, source: 'category_mercadona' });
       }
     }
   } catch (_) { /* fall through */ }
 
-  // ── Intento 2: API de categorías (no bloqueada, imágenes reales) ───────────
-  try {
-    const categoryIds = getCategoryIds(normalizedQuery);
-    if (categoryIds.length > 0) {
-      const allProducts: any[] = [];
-
-      await Promise.all(
-        categoryIds.slice(0, 3).map(async (catId) => {
-          try {
-            const ctrl = new AbortController();
-            const t = setTimeout(() => ctrl.abort(), 4000);
-            const catRes = await fetch(
-              `https://tienda.mercadona.es/api/v1_1/categories/${catId}/?lang=es`,
-              {
-                signal: ctrl.signal,
-                headers: {
-                  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-                  'Accept': 'application/json',
-                  'Accept-Language': 'es-ES,es;q=0.9',
-                  'referer': 'https://tienda.mercadona.es/',
-                },
-              }
-            );
-            clearTimeout(t);
-
-            if (catRes.ok) {
-              const catData = await catRes.json();
-              // Extraer productos de subcategorías
-              if (Array.isArray(catData.categories)) {
-                for (const subcat of catData.categories) {
-                  if (Array.isArray(subcat.products)) {
-                    allProducts.push(...subcat.products);
-                  }
-                }
-              }
-              if (Array.isArray(catData.products)) {
-                allProducts.push(...catData.products);
-              }
-            }
-          } catch (_) { /* ignore individual category failures */ }
-        })
-      );
-
-      if (allProducts.length > 0) {
-        // Filtrar por términos de búsqueda y puntuar
-        const normalizedNFD = normalizedQuery.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-        const scored = allProducts
-          .map((item) => {
-            const nameLower = (item.display_name ?? item.name ?? '').toLowerCase()
-              .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-            let score = 0;
-            if (nameLower.startsWith(normalizedNFD)) score += 10;
-            if (nameLower.includes(normalizedNFD)) score += 5;
-            const matchedTerms = queryTerms.filter((t) => {
-              const tNFD = t.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-              return nameLower.includes(tNFD);
-            });
-            score += matchedTerms.length * 3;
-            return { item, score };
-          })
-          .filter((x) => x.score > 0)
-          .sort((a, b) => b.score - a.score);
-
-        if (scored.length > 0) {
-          const mapped = scored.slice(0, 15).map((x) => mapProduct(x.item)).filter((p) => p.name.length > 0);
-          if (mapped.length > 0) {
-            return res.json({ products: mapped, source: 'category_mercadona' });
-          }
-        }
-      }
-    }
-  } catch (_) { /* fall through to static */ }
-
-  // ── Fallback estático con búsqueda fuzzy ──────────────────────────────────
-  const scored = MERCADONA_STATIC_CATALOG.map((item) => {
-    const itemLower = item.name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-    const qNFD = normalizedQuery.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-    let score = 0;
-    if (itemLower.startsWith(qNFD)) score += 10;
-    if (itemLower.includes(qNFD)) score += 5;
-    const matchedTerms = queryTerms.filter((t) => itemLower.includes(t.normalize('NFD').replace(/[\u0300-\u036f]/g, '')));
-    score += matchedTerms.length * 3;
-    return { ...item, score };
-  }).filter((item) => item.score > 0);
-
-  scored.sort((a, b) => b.score - a.score);
-
-  const results = scored.slice(0, 15).map((item) => ({
-    id: 'fallback_' + Math.random().toString(36).substring(2, 9),
-    name: item.name,
-    price: item.price,
-    priceString: `${item.price.toFixed(2)} €`,
-    pricePerUnitString: item.pricePerUnitString,
-    imageUrl: item.imageUrl,
-    unit: item.unit,
-  }));
-
-  return res.json({ products: results, source: 'local_fallback', recovered: true });
+  // ── Fallback estático mínimo ──────────────────────────────────────────────
+  return res.json({
+    products: [],
+    source: 'no_results',
+    message: 'No se encontraron productos. Intenta con otro término.'
+  });
 }
