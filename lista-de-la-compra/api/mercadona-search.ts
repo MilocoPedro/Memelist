@@ -189,32 +189,33 @@ async function fetchParentCategory(catId: number): Promise<any[]> {
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), 5000);
   try {
-    const res = await fetch(
-      `https://tienda.mercadona.es/api/v1_1/categories/${catId}/?lang=es`,
-      {
-        signal: ctrl.signal,
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-          'Accept': 'application/json',
-          'Accept-Language': 'es-ES,es;q=0.9',
-          'referer': 'https://tienda.mercadona.es/',
-        },
-      }
-    );
+    const url = `https://tienda.mercadona.es/api/v1_1/categories/${catId}/?lang=es`;
+    console.log(`[Mercadona] Fetching category ${catId}: ${url}`);
+    const res = await fetch(url, {
+      signal: ctrl.signal,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'Accept': 'application/json',
+        'Accept-Language': 'es-ES,es;q=0.9',
+        'referer': 'https://tienda.mercadona.es/',
+      },
+    });
     clearTimeout(t);
+    console.log(`[Mercadona] Category ${catId} status: ${res.status}`);
     if (!res.ok) return [];
     const data = await res.json();
     const products: any[] = [];
-    // Los productos están en subcategorías
     if (Array.isArray(data.categories)) {
       for (const sub of data.categories) {
         if (Array.isArray(sub.products)) products.push(...sub.products);
       }
     }
     if (Array.isArray(data.products)) products.push(...data.products);
+    console.log(`[Mercadona] Category ${catId} returned ${products.length} products`);
     return products;
-  } catch {
+  } catch (err: any) {
     clearTimeout(t);
+    console.error(`[Mercadona] Category ${catId} error: ${err.message}`);
     return [];
   }
 }
