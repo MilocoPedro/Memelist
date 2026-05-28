@@ -1,9 +1,4 @@
 ﻿{
-  "functions": {
-    "api/mercadona-search.ts": {
-      "runtime": "@vercel/node@5"
-    }
-  },
   "rewrites": [
     { "source": "/api/mercadona/search", "destination": "/api/mercadona-search" }
   ]
