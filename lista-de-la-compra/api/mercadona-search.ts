@@ -1,157 +1,152 @@
 ﻿import type { VercelRequest, VercelResponse } from '@vercel/node';
 
-// Mapa completo: término normalizado → IDs de subcategoría de Mercadona
+// IDs de CATEGORÍAS PADRE válidas de Mercadona (no subcategorías)
+// Fuente: /api/v1_1/categories/?lang=es
+const ALL_PARENT_CATS = [12,18,15,13,9,24,19,8,3,7,4,17,14,21,20,23,1,6,26,22,2,25,5,16,11,10];
+
+// Mapa término → IDs de categoría padre
+// IMPORTANTE: solo coincidencia exacta de palabra completa, no substring
 const TERM_TO_CATS: Record<string, number[]> = {
-  // Leche y lácteos
-  leche: [343,344,342,347,350,348,799], lacteo: [343,344,342], lacteos: [343,344,342],
-  semidesnatada: [343], desnatada: [344], entera: [342],
-  sinlactosa: [343,344,342], avena: [347], soja: [347], almendra: [347], arroz: [118,347],
-  batido: [350], horchata: [347], condensada: [799], evaporada: [799],
-  nata: [75], mantequilla: [75], margarina: [75],
-  // Huevos
-  huevo: [77], huevos: [77],
-  // Yogures y postres
-  yogur: [103,104,105,106,107,108,109], bifidus: [105], yogures: [103,104],
-  flan: [110], natillas: [110], gelatina: [111], postre: [110,111],
-  // Quesos y charcutería
-  queso: [54,56,53], quesos: [54,56], rallado: [56], lonchas: [56], untable: [53],
-  jamon: [50,48], serrano: [50], cocido: [48], pavo: [48],
-  chorizo: [51], salchichon: [51], fuet: [51], lomo: [51], embutido: [51],
-  bacon: [52], salchicha: [52], frankfurt: [52],
-  pate: [58], sobrasada: [58], chopped: [49], mortadela: [49],
-  // Frutas
-  fruta: [27], frutas: [27], manzana: [27], platano: [27], naranja: [27],
-  pera: [27], fresa: [27], fresas: [27], kiwi: [27], melocoton: [27],
-  uva: [27], sandia: [27], melon: [27], cereza: [27], ciruela: [27],
-  mandarina: [27], limon: [27], lima: [27], pomelo: [27], aguacate: [27],
-  mango: [27], pina: [27], granada: [27], higo: [27],
-  // Verduras
-  verdura: [29], verduras: [29], tomate: [29,126], lechuga: [28], ensalada: [28],
-  zanahoria: [29], cebolla: [29], patata: [29], pimiento: [29], brocoli: [29],
-  coliflor: [29], espinaca: [29], acelga: [29], apio: [29], pepino: [29],
-  calabacin: [29], berenjena: [29], alcachofa: [29], esparragos: [29],
-  puerro: [29], nabo: [29], rabano: [29], gustos: [29],
-  // Carne
-  pollo: [38], pechuga: [38], muslo: [38], alita: [38], entero: [38],
-  ternera: [40], vacuno: [40], bistec: [40], filete: [40], entrecot: [40],
-  cerdo: [37], lomo: [37,51], costilla: [37], panceta: [37],
-  cordero: [42], conejo: [42],
-  hamburguesa: [44], picada: [44], albondiga: [44],
-  empanado: [45], nugget: [45], croqueta: [45],
-  carne: [37,38,40,42,44],
-  // Pescado y marisco
-  pescado: [31], salmon: [31], merluza: [31], lubina: [31], dorada: [31],
-  bacalao: [31], trucha: [31], rape: [31], rodaballo: [31],
-  atun: [122], sardina: [122], mejillon: [123], berberecho: [123],
-  marisco: [32], gamba: [32], langostino: [32], almeja: [32], calamar: [32],
-  pulpo: [32], sepia: [32], navaja: [32],
-  ahumado: [36], salmoneado: [36],
-  // Congelados
-  congelado: [145,148,149,150,151,152], congelada: [145,148,149],
-  pizza: [138,151], pizzas: [138,151],
-  helado: [154], helados: [154], hielo: [155],
-  // Agua y bebidas
-  agua: [156], aguas: [156], mineral: [156],
-  refresco: [158,159,161,162], coca: [158], fanta: [159], sprite: [159],
-  tonica: [161], bitter: [161], te: [88,162], limonada: [159],
-  isotonica: [163], energetica: [163], bebida: [156,158,159,163],
-  cerveza: [164], birra: [164], cervezasin: [165],
-  vino: [169,170,171,172], tinto: [169], blanco: [170], rosado: [171],
-  cava: [174], sidra: [174], champan: [174],
-  licor: [181], whisky: [181], ron: [181], vodka: [181], gin: [181],
-  // Zumos
-  zumo: [98,99,100,143], zumos: [98,99,100,143], naranjazumo: [143],
-  // Panadería
-  pan: [59,60,62,64], baguette: [59], hogaza: [59], molde: [60],
-  tostada: [62], tostado: [62], biscote: [62], regañá: [64], pico: [64],
-  croissant: [65], bolleria: [65,66], magdalena: [66], bizcocho: [66],
-  muffin: [66], donut: [66], tarta: [68], pastel: [68],
-  harina: [69], levadura: [69], preparado: [69],
-  // Cereales y galletas
-  galleta: [80], galletas: [80], maria: [80], oreo: [80], digestive: [80],
-  cereal: [78], cereales: [78], corn: [78], muesli: [78], avena: [78,347],
-  tortita: [79], tortitas: [79],
-  // Arroz legumbres pasta
-  macarron: [120], macarrones: [120], espagueti: [120], pasta: [120],
-  fideos: [120], tallarines: [120], lasana: [120], canelones: [120],
-  lenteja: [121], lentejas: [121], garbanzo: [121], garbanzos: [121],
-  alubia: [121], judias: [121], guisante: [121,127],
-  // Aceites salsas especias
-  aceite: [112], oliva: [112], girasol: [112], vinagre: [112], sal: [112],
-  pimienta: [115], oregano: [115], especias: [115], condimento: [115],
-  ketchup: [116], mostaza: [116], mayonesa: [116],
-  salsa: [117], soja: [117,347], tabasco: [117], bbq: [117],
-  // Conservas
-  conserva: [122,123,126,127], lata: [122,123],
-  tomarito: [126], tomarofrito: [126], tomarotriturado: [126], frito: [126],
-  gazpacho: [130], salmorejo: [130], crema: [129,130], sopa: [129], caldo: [129],
-  // Snacks dulces
-  patatasfrita: [132], chips: [132], snack: [132], pipas: [132],
-  aceitunas: [135], encurtidos: [135], pepinillo: [135],
-  frutoseco: [133], almendras: [133], nuez: [133], anacardo: [133],
-  chocolate: [92], tableta: [92], bombones: [92],
-  azucar: [89], edulcorante: [89], stevia: [89],
-  caramelo: [95], chicle: [95], chuche: [97], gominola: [97],
-  mermelada: [90], miel: [90], nocilla: [90], nutella: [90],
-  // Cacao café
-  cafe: [83,84,81], capsula: [81], nespresso: [81], dolce: [81],
-  soluble: [84], molido: [83], grano: [83],
-  cacao: [86], colacao: [86], nesquik: [86], chocolate_bebida: [86],
-  infusion: [88], manzanilla: [88], poleo: [88],
-  // Higiene y cuidado
-  champu: [199], acondicionador: [201], mascarilla: [201], tinte: [203],
-  gel: [187,189], jabonmanos: [187], jabon: [187],
-  dentifrico: [186], cepillo: [186], enjuague: [186], hilo: [186],
-  desodorante: [188], antiperspirant: [188],
-  crema: [185,189], hidratante: [189], locion: [189],
-  afeitado: [192], maquinilla: [192], espuma: [192],
-  colonia: [196], perfume: [196],
-  protectorsolar: [198], solar: [198],
-  // Limpieza hogar
-  detergente: [226], suavizante: [226], quitamanchas: [226],
-  fregasuelos: [233], multiusos: [232], limpiador: [232,233],
-  lejia: [234], amoniaco: [234],
-  limpiacristal: [235], cristales: [235],
-  lavavajillas: [229], bayeta: [237], estropajo: [237], guante: [237],
-  insecticida: [241], ambientador: [241],
-  bolsabasura: [239], pilas: [239], bolsa: [239],
-  papelcocina: [238], higienico: [238], celulosa: [238], servilleta: [238],
-  // Bebés
-  bebe: [216,217,218,219], infantil: [216], papilla: [216],
-  toallita: [217], panal: [217], pañal: [217],
-  biberon: [219], chupete: [219],
-  // Mascotas
-  perro: [221], pienso: [221,222], pellet: [221,222],
-  gato: [222], gatofood: [222],
-  mascota: [221,222,225],
-  // Maquillaje
-  rimmel: [210], mascara: [210], sombra: [210], eyeliner: [210],
-  pintalabios: [208], labial: [208], gloss: [208],
-  colorete: [207], polvos: [207], base: [206], corrector: [206],
-  pincel: [212], brocha: [212],
-  // Fitoterapia
-  vitamina: [213,214], complemento: [213,214], suplemento: [213],
-  melatonina: [213], magnesio: [213],
+  // Leche y lácteos (cat 6)
+  leche: [6], lacteo: [6], lacteos: [6], batido: [6], horchata: [6],
+  yogur: [11], yogures: [11], bifidus: [11], natillas: [11], flan: [11], postre: [11],
+  mantequilla: [6], margarina: [6], nata: [6], huevo: [6], huevos: [6],
+  // Frutas y verduras (cat 1)
+  fruta: [1], frutas: [1], verdura: [1], verduras: [1],
+  manzana: [1], platano: [1], naranja: [1], pera: [1], fresa: [1], fresas: [1],
+  kiwi: [1], melocoton: [1], uva: [1], sandia: [1], melon: [1], cereza: [1],
+  mandarina: [1], limon: [1], lima: [1], pomelo: [1], aguacate: [1],
+  mango: [1], pina: [1], ciruela: [1], granada: [1],
+  tomate: [1,14], lechuga: [1], ensalada: [1], zanahoria: [1], cebolla: [1],
+  patata: [1], pimiento: [1], brocoli: [1], coliflor: [1], espinaca: [1],
+  acelga: [1], apio: [1], pepino: [1], calabacin: [1], berenjena: [1],
+  alcachofa: [1], esparragos: [1], puerro: [1], ajo: [1],
+  // Carne (cat 3)
+  pollo: [3], pechuga: [3], muslo: [3], alita: [3],
+  ternera: [3], vacuno: [3], bistec: [3], filete: [3], entrecot: [3],
+  cerdo: [3], costilla: [3], panceta: [3],
+  cordero: [3], conejo: [3],
+  hamburguesa: [3], picada: [3], albondiga: [3],
+  nugget: [3], croqueta: [3], empanado: [3],
+  carne: [3], carnes: [3],
+  // Charcutería y quesos (cat 4)
+  jamon: [4], serrano: [4], cocido: [4],
+  chorizo: [4], salchichon: [4], fuet: [4], embutido: [4],
+  bacon: [4], salchicha: [4], frankfurt: [4],
+  pate: [4], sobrasada: [4], chopped: [4], mortadela: [4],
+  queso: [4], quesos: [4], rallado: [4], untable: [4],
+  // Panadería (cat 5)
+  pan: [5], baguette: [5], hogaza: [5], molde: [5],
+  tostada: [5], biscote: [5], pico: [5], rosquilleta: [5],
+  croissant: [5], bolleria: [5], magdalena: [5], bizcocho: [5],
+  muffin: [5], donut: [5], tarta: [5], pastel: [5],
+  harina: [5], levadura: [5],
+  // Huevos leche mantequilla ya cubierto en cat 6
+  // Cereales y galletas (cat 7)
+  galleta: [7], galletas: [7], maria: [7], oreo: [7],
+  cereal: [7], cereales: [7], muesli: [7],
+  tortita: [7], tortitas: [7],
+  // Cacao café (cat 8)
+  cafe: [8], capsula: [8], nespresso: [8],
+  soluble: [8], molido: [8],
+  cacao: [8], colacao: [8], nesquik: [8],
+  infusion: [8], manzanilla: [8], poleo: [8], rooibos: [8],
+  // Azucar caramelos (cat 9)
+  chocolate: [9], tableta: [9], bombon: [9],
+  azucar: [9], edulcorante: [9], stevia: [9],
+  caramelo: [9], chicle: [9], chuche: [9], gominola: [9],
+  mermelada: [9], miel: [9], nocilla: [9], nutella: [9],
+  // Zumos (cat 10)
+  zumo: [10], zumos: [10],
+  // Yogures postres (cat 11 ya cubierto)
+  // Aceites salsas especias (cat 12)
+  aceite: [12], oliva: [12], girasol: [12], vinagre: [12], sal: [12],
+  pimienta: [12], oregano: [12], especias: [12], condimento: [12],
+  ketchup: [12], mostaza: [12], mayonesa: [12], salsa: [12],
+  // Arroz legumbres pasta (cat 13)
+  arroz: [13], macarron: [13], macarrones: [13], espagueti: [13],
+  pasta: [13], fideos: [13], tallarines: [13], lasana: [13],
+  lenteja: [13], lentejas: [13], garbanzo: [13], garbanzos: [13],
+  alubia: [13], judias: [13], guisante: [13],
+  // Conservas (cat 14)
+  conserva: [14], lata: [14], atun: [14], sardina: [14],
+  mejillon: [14], berberecho: [14], anchoa: [14],
+  gazpacho: [14], salmorejo: [14], sopa: [14], caldo: [14],
+  tomarofrito: [14], triturado: [14],
+  // Aperitivos (cat 15)
+  patatasfrita: [15], chips: [15], snack: [15], pipas: [15],
+  aceitunas: [15], encurtidos: [15], pepinillo: [15],
+  frutoseco: [15], almendra: [15], nuez: [15], anacardo: [15], cacahuete: [15],
+  // Pizzas platos (cat 16)
+  pizza: [16], pizzas: [16], plato: [16], precocinado: [16],
+  // Congelados (cat 17)
+  congelado: [17], congelada: [17], helado: [17], helados: [17],
+  // Agua refrescos (cat 18)
+  agua: [18], aguas: [18], mineral: [18],
+  refresco: [18], cocacola: [18], fanta: [18], sprite: [18],
+  tonica: [18], isotonica: [18], energetica: [18],
+  // Bodega (cat 19)
+  cerveza: [19], birra: [19],
+  vino: [19], tinto: [19], blanco: [19], rosado: [19],
+  cava: [19], sidra: [19], champan: [19],
+  licor: [19], whisky: [19], ron: [19], vodka: [19], ginebra: [19],
+  // Cuidado facial corporal (cat 20)
+  gel: [20], jabon: [20], jabonmanos: [20],
+  crema: [20], hidratante: [20], locion: [20],
+  desodorante: [20], antiperspirant: [20],
+  afeitado: [20], maquinilla: [20],
+  colonia: [20], perfume: [20],
+  solar: [20], protectorsolar: [20],
+  // Cuidado cabello (cat 21)
+  champu: [21], acondicionador: [21], mascarilla: [21], tinte: [21],
+  // Maquillaje (cat 22)
+  rimmel: [22], labial: [22], colorete: [22], base: [22], corrector: [22],
+  // Fitoterapia (cat 23)
+  vitamina: [23], complemento: [23], suplemento: [23], melatonina: [23],
+  // Bebé (cat 24)
+  bebe: [24], papilla: [24], toallitabebe: [24], panal: [24], biberon: [24],
+  // Mascotas (cat 25)
+  perro: [25], gato: [25], pienso: [25], mascota: [25],
+  // Limpieza hogar (cat 26)
+  detergente: [26], suavizante: [26], quitamanchas: [26],
+  fregasuelos: [26], multiusos: [26], limpiador: [26],
+  lejia: [26], amoniaco: [26], limpiacristal: [26],
+  lavavajillas: [26], bayeta: [26], estropajo: [26],
+  insecticida: [26], ambientador: [26],
+  bolsabasura: [26], pilas: [26],
+  papel: [26], higienico: [26], celulosa: [26], servilleta: [26],
+  quitagrasa: [26], desengrasante: [26], friegasuelos: [26],
+  limpiabanos: [26], limpiacacos: [26], wc: [26],
 };
 
-// Categorías "generales" para búsquedas sin coincidencia exacta
-const GENERAL_CATS = [342, 343, 344, 27, 29, 38, 31, 118, 120, 80, 78, 132, 156, 164, 226, 238];
-
 function getCategoryIds(query: string): number[] {
-  const normalized = query.toLowerCase()
-    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-z0-9\s]/g, '');
-  const terms = normalized.split(/\s+/).filter(t => t.length > 2);
+  // Normalizar: minúsculas, quitar acentos, quitar caracteres especiales
+  const normalized = query
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .trim();
+
+  const words = normalized.split(/\s+/).filter(w => w.length >= 3);
   const ids = new Set<number>();
 
-  for (const term of terms) {
-    for (const [key, catIds] of Object.entries(TERM_TO_CATS)) {
-      const keyNorm = key.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-      if (term.includes(keyNorm) || keyNorm.includes(term) || keyNorm.startsWith(term)) {
-        catIds.forEach(id => ids.add(id));
+  for (const word of words) {
+    // Coincidencia EXACTA de palabra (no substring)
+    if (TERM_TO_CATS[word]) {
+      TERM_TO_CATS[word].forEach(id => ids.add(id));
+      continue;
+    }
+    // Coincidencia por prefijo de 4+ letras (ej: "toall" → toallita)
+    if (word.length >= 4) {
+      for (const [key, catIds] of Object.entries(TERM_TO_CATS)) {
+        if (key.startsWith(word) || word.startsWith(key)) {
+          catIds.forEach(id => ids.add(id));
+        }
       }
     }
   }
+
   return Array.from(ids);
 }
 
@@ -159,8 +154,13 @@ function mapProduct(item: any) {
   let price: number | null = null;
   let pricePerUnitString = '';
   if (item.price_instructions) {
-    price = parseFloat(item.price_instructions.unit_price ?? item.price_instructions.price);
+    const raw = item.price_instructions.unit_price ?? item.price_instructions.bulk_price ?? item.price_instructions.price;
+    price = raw !== null && raw !== undefined ? parseFloat(raw) : null;
     pricePerUnitString = item.price_instructions.price_per_unit_string ?? '';
+    // Construir pricePerUnitString si no existe
+    if (!pricePerUnitString && item.price_instructions.reference_price && item.price_instructions.reference_format) {
+      pricePerUnitString = `${parseFloat(item.price_instructions.reference_price).toFixed(2)} €/${item.price_instructions.reference_format}`;
+    }
   } else if (item.price) {
     price = parseFloat(item.price);
   }
@@ -172,23 +172,20 @@ function mapProduct(item: any) {
   else if (unitName.includes('gram') || unitName === 'g') unit = 'g';
   else if (unitName.includes('pack') || unitName.includes('paquet')) unit = 'pack';
 
-  let imgUrl: string = item.thumbnail ?? item.image_url ?? '';
-  if (imgUrl && !imgUrl.startsWith('http')) {
-    imgUrl = `https://prod-mercadona.imgix.net/images/${imgUrl}`;
-  }
+  const imgUrl: string = item.thumbnail ?? item.image_url ?? '';
 
   return {
     id: String(item.id ?? Math.random()),
     name: item.display_name ?? item.name ?? '',
     price: price !== null && !isNaN(price) ? price : null,
-    priceString: price !== null ? `${price.toFixed(2)} €` : '',
+    priceString: price !== null && !isNaN(price) ? `${price.toFixed(2)} €` : '',
     pricePerUnitString,
     imageUrl: imgUrl,
     unit,
   };
 }
 
-async function fetchCategory(catId: number): Promise<any[]> {
+async function fetchParentCategory(catId: number): Promise<any[]> {
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), 5000);
   try {
@@ -208,6 +205,7 @@ async function fetchCategory(catId: number): Promise<any[]> {
     if (!res.ok) return [];
     const data = await res.json();
     const products: any[] = [];
+    // Los productos están en subcategorías
     if (Array.isArray(data.categories)) {
       for (const sub of data.categories) {
         if (Array.isArray(sub.products)) products.push(...sub.products);
@@ -221,21 +219,31 @@ async function fetchCategory(catId: number): Promise<any[]> {
   }
 }
 
-function scoreProducts(products: any[], queryTerms: string[]): any[] {
+function scoreAndFilter(products: any[], queryWords: string[]): any[] {
+  const seen = new Set<string>();
   return products
     .map(item => {
-      const nameLower = (item.display_name ?? item.name ?? '').toLowerCase()
+      const name = item.display_name ?? item.name ?? '';
+      const nameLower = name.toLowerCase()
         .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
       let score = 0;
-      for (const term of queryTerms) {
-        const termNFD = term.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-        if (nameLower.startsWith(termNFD)) score += 10;
-        else if (nameLower.includes(termNFD)) score += 5;
+      for (const word of queryWords) {
+        const wordNFD = word.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        if (nameLower === wordNFD) score += 20;
+        else if (nameLower.startsWith(wordNFD)) score += 10;
+        else if (nameLower.includes(wordNFD)) score += 5;
       }
-      return { item, score };
+      return { item, score, name };
     })
     .filter(x => x.score > 0)
     .sort((a, b) => b.score - a.score)
+    .filter(x => {
+      // Deduplicar por nombre similar
+      const key = x.name.toLowerCase().substring(0, 30);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
     .map(x => x.item);
 }
 
@@ -243,45 +251,53 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
 
   const query = req.query.q;
-  if (!query || typeof query !== 'string' || !query.trim()) return res.json({ products: [] });
+  if (!query || typeof query !== 'string' || !query.trim()) {
+    return res.json({ products: [] });
+  }
 
   const normalizedQuery = query.toLowerCase().trim();
-  const queryTerms = normalizedQuery.split(/\s+/).filter(t => t.length > 1);
+  const queryWords = normalizedQuery
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .split(/\s+/).filter(w => w.length >= 2);
 
-  // ── Intento 1: API de categorías con detección inteligente ────────────────
+  // Obtener categorías relevantes
+  let categoryIds = getCategoryIds(normalizedQuery);
+
+  // Si no hay match, buscar en categorías más comunes
+  if (categoryIds.length === 0) {
+    categoryIds = [1, 3, 6, 7, 13, 14, 18, 26];
+  }
+
+  // Limitar a 4 categorías para no superar timeout de Vercel (10s)
+  const catsToFetch = categoryIds.slice(0, 4);
+
   try {
-    let categoryIds = getCategoryIds(normalizedQuery);
-
-    // Si no hay coincidencia exacta, usar categorías generales
-    if (categoryIds.length === 0) {
-      categoryIds = GENERAL_CATS;
-    }
-
-    // Limitar a máximo 5 categorías para no exceder el tiempo de respuesta
-    const catsToFetch = categoryIds.slice(0, 5);
-
-    const allProductArrays = await Promise.all(catsToFetch.map(fetchCategory));
+    const allProductArrays = await Promise.all(catsToFetch.map(fetchParentCategory));
     const allProducts = allProductArrays.flat();
 
     if (allProducts.length > 0) {
-      let filtered = scoreProducts(allProducts, queryTerms);
+      const filtered = scoreAndFilter(allProducts, queryWords);
 
-      // Si no hay coincidencias exactas pero hay productos, devolver los primeros
-      if (filtered.length === 0 && categoryIds !== GENERAL_CATS) {
-        filtered = allProducts.slice(0, 15);
+      if (filtered.length > 0) {
+        const mapped = filtered.slice(0, 15).map(mapProduct).filter(p => p.name.length > 0);
+        if (mapped.length > 0) {
+          return res.json({ products: mapped, source: 'category_mercadona' });
+        }
       }
 
-      const mapped = filtered.slice(0, 15).map(mapProduct).filter(p => p.name.length > 0);
-      if (mapped.length > 0) {
-        return res.json({ products: mapped, source: 'category_mercadona' });
+      // Hay productos en la categoría pero ninguno coincide con el término exacto
+      // Devolver los primeros de la categoría más relevante
+      const firstBatch = allProductArrays[0]?.slice(0, 10) ?? [];
+      if (firstBatch.length > 0) {
+        const mapped = firstBatch.map(mapProduct).filter(p => p.name.length > 0);
+        return res.json({ products: mapped, source: 'category_mercadona_broad' });
       }
     }
   } catch (_) { /* fall through */ }
 
-  // ── Fallback estático mínimo ──────────────────────────────────────────────
   return res.json({
     products: [],
     source: 'no_results',
-    message: 'No se encontraron productos. Intenta con otro término.'
+    message: 'No se encontraron productos. Intenta con otro término de búsqueda.'
   });
 }
