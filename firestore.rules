@@ -141,5 +141,11 @@ service cloud.firestore {
           && hasWriteAccessListId(listId);
       }
     }
+
+    // Catálogo Mercadona - lectura pública, escritura solo autenticada
+    match /mercadona_catalog/{docId} {
+      allow read: if true;
+      allow write: if isSignedIn();
+    }
   }
 }
