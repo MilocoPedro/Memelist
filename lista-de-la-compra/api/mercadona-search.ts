@@ -15,7 +15,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const prompt = `Eres un experto en productos de Mercadona España. 
+    const prompt = `Eres un experto en productos de Mercadona España con conocimiento detallado de su catálogo y URLs de imágenes.
 El usuario busca: "${query}"
 
 Devuelve EXACTAMENTE un JSON con este formato, sin texto adicional, sin markdown, sin bloques de código:
@@ -28,17 +28,21 @@ Devuelve EXACTAMENTE un JSON con este formato, sin texto adicional, sin markdown
       "priceString": "X.XX €",
       "pricePerUnitString": "X.XX €/kg o €/L o €/ud.",
       "unit": "uds|kg|g|l|pack",
-      "imageUrl": ""
+      "imageUrl": "URL completa de prod-mercadona.imgix.net o cadena vacía si no la conoces"
     }
   ]
 }
 
 Reglas:
-- Devuelve entre 8 y 12 productos relevantes para la búsqueda
-- Usa nombres reales de productos Hacendado, Bosque Verde, Deliplus u otras marcas de Mercadona
-- Los precios deben ser realistas y actuales de Mercadona España (2024-2025)
-- Si hay varias variantes (entera, semidesnatada, etc.) inclúyelas todas
-- imageUrl siempre vacío ""
+- Devuelve entre 8 y 12 productos relevantes
+- Usa nombres reales de Mercadona (Hacendado, Bosque Verde, Deliplus, etc.)
+- Precios realistas de Mercadona España 2024-2025
+- Para imageUrl usa el formato: https://prod-mercadona.imgix.net/images/HASH.jpg?fit=crop&h=300&w=300
+- Si conoces el hash MD5 exacto de la imagen del producto en Mercadona inclúyelo, si no déjalo vacío ""
+- Ejemplos de URLs conocidas:
+  * Leche semidesnatada Hacendado pack 6: https://prod-mercadona.imgix.net/images/b9613b9354f8b0705f998b2201ffe443.jpg?fit=crop&h=300&w=300
+  * Leche entera Hacendado pack 6: https://prod-mercadona.imgix.net/images/4b1fd692f8032ec9e1ff419f27a856a4.jpg?fit=crop&h=300&w=300
+  * Leche desnatada Hacendado pack 6: https://prod-mercadona.imgix.net/images/40b9fc5096d638d3e3fe2c5d4f8eb1d8.jpg?fit=crop&h=300&w=300
 - Solo JSON, nada más`;
 
     const response = await fetch(
