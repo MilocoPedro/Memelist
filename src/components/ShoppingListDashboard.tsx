@@ -256,79 +256,22 @@ export const ShoppingListDashboard: React.FC<ShoppingListDashboardProps> = ({
   const [isEditingCP, setIsEditingCP] = useState(false);
   const [cpTempInput, setCpTempInput] = useState(postalCode);
 
-  // Mapea código postal a almacén Mercadona más cercano
-  const postalCodeToWarehouse = (cp: string): string => {
-    const code = parseInt(cp, 10);
-    if (isNaN(code)) return 'mad1';
-    if (code >= 28000 && code <= 28999) return 'mad1'; // Madrid
-    if (code >= 8000  && code <= 8999)  return 'bcn1'; // Barcelona
-    if (code >= 46000 && code <= 46999) return 'vlc1'; // Valencia
-    if (code >= 41000 && code <= 41999) return 'svq1'; // Sevilla
-    if (code >= 29000 && code <= 29999) return 'agp1'; // Málaga
-    if (code >= 3000  && code <= 3999)  return 'alc1'; // Alicante
-    if (code >= 50000 && code <= 50999) return 'zaz1'; // Zaragoza
-    if (code >= 15000 && code <= 15999) return 'scq1'; // A Coruña
-    if (code >= 45000 && code <= 45999) return 'mad1'; // Toledo → Madrid
-    if (code >= 13000 && code <= 13999) return 'mad1'; // Ciudad Real → Madrid
-    return 'mad1'; // Fallback Madrid
-  };
-
   const fetchMercadonaProducts = async (q: string) => {
     if (!q.trim()) return;
     setLoadingMercadona(true);
     setMercadonaError('');
     try {
-      // Llamada directa desde navegador — las IPs domésticas no son bloqueadas por Mercadona
-      const wh = postalCodeToWarehouse(postalCode);
-      const url = `https://tienda.mercadona.es/api/v1_1/search/?query=${encodeURIComponent(q)}&lang=es&wh=${wh}`;
-
-      const resp = await fetch(url, {
-        headers: {
-          'Accept': 'application/json, text/plain, */*',
-          'Accept-Language': 'es-ES,es;q=0.9',
-        },
-      });
+      // Llama al proxy serverless de Vercel — evita CORS y bloqueos de IP
+      const url = `/api/mercadona/search?q=${encodeURIComponent(q)}&postalCode=${encodeURIComponent(postalCode)}`;
+      const resp = await fetch(url);
 
       if (resp.ok) {
         const data = await resp.json();
-        // La API devuelve { results: [...] } en búsqueda
-        const results: any[] = data.results || [];
-
-        const products = results
-          .map((item: any) => {
-            const pi = item.price_instructions || {};
-            // unit_price = precio por unidad de venta (lo que paga el cliente)
-            // bulk_price / reference_price = precio por kg/L (precio de referencia)
-            const unitPrice = pi.unit_price ? parseFloat(pi.unit_price) : null;
-            const refPrice  = pi.reference_price ? parseFloat(pi.reference_price) : null;
-            const refFormat = pi.reference_format || pi.size_format || '';
-            const pricePerUnitString = refPrice && refFormat
-              ? `${refPrice.toFixed(2)} €/${refFormat}`
-              : '';
-
-            // selling_method: 0 = peso variable (kg), 1 = unidad
-            const unit = pi.selling_method === 1 ? 'ud' : (pi.size_format || 'kg');
-
-            // La API devuelve "thumbnail" como URL directa de imagen real
-            const imageUrl = item.thumbnail || '';
-
-            return {
-              name: item.display_name || '',
-              price: unitPrice,
-              pricePerUnitString,
-              unit,
-              imageUrl,
-            };
-          })
-          .filter((p: any) => p.name.length > 0);
-
+        const products = data.products || [];
         setMercadonaResults(products);
-
         if (products.length === 0) {
           setMercadonaError('Sin resultados. Prueba con otro término.');
         }
-      } else if (resp.status === 403) {
-        setMercadonaError('Mercadona ha bloqueado la solicitud. Inténtalo de nuevo.');
       } else {
         setMercadonaError(`Error al conectar con Mercadona (${resp.status}).`);
       }
