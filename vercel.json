@@ -1,5 +1,5 @@
 {
   "rewrites": [
-    { "source": "/api/mercadona/search", "destination": "/api/mercadona-search" }
+    { "source": "/((?!api/).*)", "destination": "/index.html" }
   ]
 }
