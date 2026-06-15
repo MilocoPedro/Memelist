@@ -261,12 +261,33 @@ export const ShoppingListDashboard: React.FC<ShoppingListDashboardProps> = ({
     setLoadingMercadona(true);
     setMercadonaError('');
     try {
-      const resp = await fetch(`/api/mercadona/search?q=${encodeURIComponent(q)}&postalCode=${encodeURIComponent(postalCode)}`);
+      // Llamada directa desde el navegador — evita el bloqueo 403 de servidores cloud
+      const url = `https://tienda.mercadona.es/api/v1_1/search/?query=${encodeURIComponent(q)}&postal_code=${encodeURIComponent(postalCode)}&lang=es`;
+      const resp = await fetch(url, {
+        headers: { 'Accept': 'application/json' },
+      });
+
       if (resp.ok) {
         const data = await resp.json();
-        setMercadonaResults(data.products || []);
+        const results = data.results || [];
+
+        const products = results.map((item: any) => ({
+          name: item.display_name || item.name || '',
+          price: item.price_instructions?.unit_price
+            ? parseFloat(item.price_instructions.unit_price)
+            : null,
+          pricePerUnitString: item.price_instructions?.reference_format || '',
+          unit: item.price_instructions?.selling_method === 1 ? 'ud' : 'kg',
+          imageUrl: item.photos?.[0]?.zoom || item.photos?.[0]?.regular || '',
+        })).filter((p: any) => p.name);
+
+        setMercadonaResults(products);
+
+        if (products.length === 0) {
+          setMercadonaError('Sin resultados para esa búsqueda.');
+        }
       } else {
-        setMercadonaError('Error al sincronizar precios con Mercadona.');
+        setMercadonaError('Error al conectar con Mercadona.');
       }
     } catch (err) {
       setMercadonaError('Error al contactar con el buscador.');
