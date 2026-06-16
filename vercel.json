@@ -2,6 +2,11 @@
   "buildCommand": "vite build",
   "outputDirectory": "dist",
   "framework": null,
+  "functions": {
+    "api/*.ts": {
+      "runtime": "@vercel/node@5.0.0"
+    }
+  },
   "rewrites": [
     { "source": "/api/mercadona/search", "destination": "/api/mercadona-search" },
     { "source": "/((?!api/).*)", "destination": "/index.html" }
