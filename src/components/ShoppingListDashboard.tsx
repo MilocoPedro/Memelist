@@ -262,7 +262,7 @@ export const ShoppingListDashboard: React.FC<ShoppingListDashboardProps> = ({
     setMercadonaError('');
     try {
       // Llama al proxy serverless de Vercel — evita CORS y bloqueos de IP
-      const url = `/api/mercadona/search?q=${encodeURIComponent(q)}&postalCode=${encodeURIComponent(postalCode)}`;
+      const url = `/api/mercadona-search?q=${encodeURIComponent(q)}&postalCode=${encodeURIComponent(postalCode)}`;
       const resp = await fetch(url);
 
       if (resp.ok) {
