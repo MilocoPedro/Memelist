@@ -10,7 +10,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!query) return res.status(400).json({ products: [] });
 
   try {
-    const url = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(query)}&search_simple=1&action=process&json=1&page_size=15&lc=es&cc=es&fields=product_name,brands,quantity,image_front_small_url,image_url`;
+    // Search-a-licious — nuevo endpoint oficial de Open Food Facts (el legacy /cgi/search.pl está caído)
+    const url = `https://search.openfoodfacts.org/search?q=${encodeURIComponent(query)}&langs=es&page_size=15&fields=product_name,brands,quantity,image_front_small_url,image_url,countries_tags`;
 
     const upstream = await fetch(url, {
       headers: {
@@ -19,12 +20,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       },
     });
 
+    console.log(`[search-a-licious] status: ${upstream.status} for query: ${query}`);
+
     if (!upstream.ok) {
       return res.status(200).json({ products: [], source: "error", error: upstream.status });
     }
 
     const data = await upstream.json();
-    const results: any[] = data.products || [];
+    // Search-a-licious devuelve { hits: [...] }
+    const results: any[] = data.hits || [];
+
+    console.log(`[search-a-licious] ${results.length} results`);
+    if (results[0]) console.log(`[search-a-licious] first keys: ${Object.keys(results[0]).join(',')}`);
 
     const products = results
       .map((item: any) => {
@@ -49,6 +56,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(200).json({ products, source: "openfoodfacts" });
 
   } catch (err) {
+    console.error("[search-a-licious] Error:", err);
     return res.status(200).json({ products: [], source: "error", error: String(err) });
   }
 }
