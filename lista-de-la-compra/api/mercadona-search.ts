@@ -10,8 +10,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!query) return res.status(400).json({ products: [] });
 
   try {
-    // Search-a-licious — nuevo endpoint oficial de Open Food Facts (el legacy /cgi/search.pl está caído)
-    const url = `https://search.openfoodfacts.org/search?q=${encodeURIComponent(query)}&langs=es&page_size=15&fields=product_name,brands,quantity,image_front_small_url,image_url,countries_tags`;
+    const url = `https://search.openfoodfacts.org/search?q=${encodeURIComponent(query)}&langs=es&page_size=15&fields=product_name,brands,quantity,image_front_small_url,image_url`;
 
     const upstream = await fetch(url, {
       headers: {
@@ -20,30 +19,31 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       },
     });
 
-    console.log(`[search-a-licious] status: ${upstream.status} for query: ${query}`);
-
     if (!upstream.ok) {
       return res.status(200).json({ products: [], source: "error", error: upstream.status });
     }
 
     const data = await upstream.json();
-    // Search-a-licious devuelve { hits: [...] }
     const results: any[] = data.hits || [];
-
-    console.log(`[search-a-licious] ${results.length} results`);
-    if (results[0]) console.log(`[search-a-licious] first keys: ${Object.keys(results[0]).join(',')}`);
 
     const products = results
       .map((item: any) => {
-        const name = item.product_name || "";
-        const brand = item.brands || "";
+        const name = String(item.product_name || "");
+        // brands puede ser string o array
+        const brandRaw = item.brands;
+        const brand = Array.isArray(brandRaw)
+          ? brandRaw.join(", ")
+          : String(brandRaw || "");
+
         const fullName = brand && !name.toLowerCase().includes(brand.toLowerCase())
           ? `${name} ${brand}`.trim()
           : name;
+
         const imageUrl = item.image_front_small_url || item.image_url || "";
+
         return {
           name: fullName || name,
-          quantity: item.quantity || "",
+          quantity: String(item.quantity || ""),
           price: null,
           priceString: "",
           pricePerUnitString: "",
@@ -56,7 +56,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(200).json({ products, source: "openfoodfacts" });
 
   } catch (err) {
-    console.error("[search-a-licious] Error:", err);
     return res.status(200).json({ products: [], source: "error", error: String(err) });
   }
 }
