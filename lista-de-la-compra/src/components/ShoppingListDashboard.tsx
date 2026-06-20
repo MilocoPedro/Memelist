@@ -261,46 +261,20 @@ export const ShoppingListDashboard: React.FC<ShoppingListDashboardProps> = ({
     setLoadingMercadona(true);
     setMercadonaError('');
     try {
-      // Buscar en catálogo propio capturado de Mercadona via extensión
-      const FIRESTORE_PROJECT = 'memelist-95059';
-      const FIREBASE_API_KEY = 'AIzaSyCll51GiaeJo0VzpTJPG-lyxelF_oeUbms';
-      const query = q.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-      
-      // Firestore REST — buscar por nombre (búsqueda local en resultados)
-      const url = `https://firestore.googleapis.com/v1/projects/${FIRESTORE_PROJECT}/databases/(default)/documents/mercadona_catalog?key=${FIREBASE_API_KEY}&pageSize=200`;
-      const resp = await fetch(url);
-      
+      // Buscar en catálogo Firestore via endpoint serverless con paginación completa
+      const resp = await fetch(`/api/mercadona-search?q=${encodeURIComponent(q)}`);
       if (resp.ok) {
         const data = await resp.json();
-        const docs = data.documents || [];
-        
-        // Filtrar por coincidencia con la búsqueda
-        const results = docs
-          .map((doc: any) => {
-            const f = doc.fields || {};
-            return {
-              name: f.name?.stringValue || '',
-              price: f.price?.doubleValue ?? f.price?.integerValue ?? null,
-              pricePerUnitString: f.pricePerUnitString?.stringValue || '',
-              unit: f.unit?.stringValue || 'ud',
-              imageUrl: f.imageUrl?.stringValue || '',
-            };
-          })
-          .filter((p: any) => {
-            const nameLower = p.name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-            return query.split(' ').every((word: string) => nameLower.includes(word));
-          })
-          .slice(0, 20);
-
-        setMercadonaResults(results);
-        if (results.length === 0) {
-          setMercadonaError('Sin resultados en el catálogo. Navega más en Mercadona con la extensión.');
+        const products = data.products || [];
+        setMercadonaResults(products);
+        if (products.length === 0) {
+          setMercadonaError('Sin resultados. Prueba con otro término o captura más productos con la extensión.');
         }
       } else {
-        setMercadonaError('Error al consultar el catálogo.');
+        setMercadonaError('Error al buscar en el catálogo.');
       }
     } catch (err) {
-      setMercadonaError('Error al contactar con el catálogo.');
+      setMercadonaError('Error al contactar con el buscador.');
     } finally {
       setLoadingMercadona(false);
     }
