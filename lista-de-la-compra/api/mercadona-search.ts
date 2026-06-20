@@ -1,87 +1,70 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 
-// Obtiene el precio medio de un producto en España via Open Prices API
-async function getPriceForBarcode(barcode: string): Promise<number | null> {
-  try {
-    const url = `https://prices.openfoodfacts.org/api/v1/prices?product_code=${barcode}&currency=EUR&country=es&page_size=10&order_by=-date`;
-    const res = await fetch(url, {
-      headers: { "User-Agent": "MemeList/1.0 (https://memelist.vercel.app)" }
-    });
-    if (!res.ok) return null;
+const FIRESTORE_PROJECT = 'memelist-95059';
+const FIREBASE_API_KEY = 'AIzaSyCll51GiaeJo0VzpTJPG-lyxelF_oeUbms';
+
+// Normaliza texto para busqueda (quita acentos, minusculas)
+function normalize(str: string): string {
+  return str.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
+// Descarga todos los docs de mercadona_catalog paginando
+async function getAllProducts(): Promise<any[]> {
+  const all: any[] = [];
+  let pageToken: string | null = null;
+
+  do {
+    const url = new URL(`https://firestore.googleapis.com/v1/projects/${FIRESTORE_PROJECT}/databases/(default)/documents/mercadona_catalog`);
+    url.searchParams.set('key', FIREBASE_API_KEY);
+    url.searchParams.set('pageSize', '300');
+    if (pageToken) url.searchParams.set('pageToken', pageToken);
+
+    const res = await fetch(url.toString());
+    if (!res.ok) break;
+
     const data = await res.json();
-    const items: any[] = data.items || [];
-    if (items.length === 0) return null;
-    // Media de los precios disponibles
-    const prices = items.map((p: any) => parseFloat(p.price)).filter((p: number) => !isNaN(p) && p > 0);
-    if (prices.length === 0) return null;
-    const avg = prices.reduce((a: number, b: number) => a + b, 0) / prices.length;
-    return Math.round(avg * 100) / 100;
-  } catch {
-    return null;
-  }
+    const docs: any[] = data.documents || [];
+    all.push(...docs);
+    pageToken = data.nextPageToken || null;
+  } while (pageToken);
+
+  return all;
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
-  if (req.method === "OPTIONS") return res.status(200).end();
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  if (req.method === 'OPTIONS') return res.status(200).end();
 
-  const query = (req.query.q as string || "").trim();
+  const query = (req.query.q as string || '').trim();
   if (!query) return res.status(400).json({ products: [] });
 
   try {
-    // 1. Buscar productos con Search-a-licious
-    const searchUrl = `https://search.openfoodfacts.org/search?q=${encodeURIComponent(query)}&langs=es&page_size=12&fields=product_name,brands,quantity,image_front_small_url,image_url,code`;
+    const docs = await getAllProducts();
+    const words = normalize(query).split(/\s+/).filter(Boolean);
 
-    const upstream = await fetch(searchUrl, {
-      headers: {
-        "User-Agent": "MemeList/1.0 (https://memelist.vercel.app)",
-        "Accept": "application/json",
-      },
-    });
-
-    if (!upstream.ok) {
-      return res.status(200).json({ products: [], source: "error", error: upstream.status });
-    }
-
-    const data = await upstream.json();
-    const results: any[] = data.hits || [];
-
-    // 2. Para cada producto, intentar obtener precio de Open Prices (en paralelo)
-    const products = await Promise.all(
-      results.map(async (item: any) => {
-        const name = String(item.product_name || "");
-        const brandRaw = item.brands;
-        const brand = Array.isArray(brandRaw) ? brandRaw.join(", ") : String(brandRaw || "");
-        const fullName = brand && !name.toLowerCase().includes(brand.toLowerCase())
-          ? `${name} ${brand}`.trim()
-          : name;
-
-        const imageUrl = item.image_front_small_url || item.image_url || "";
-        const barcode = item.code || "";
-
-        // Obtener precio si hay barcode
-        const price = barcode ? await getPriceForBarcode(barcode) : null;
-        const priceString = price ? `${price.toFixed(2)} €` : "";
-
+    const products = docs
+      .map((doc: any) => {
+        const f = doc.fields || {};
         return {
-          name: fullName || name,
-          quantity: String(item.quantity || ""),
-          price,
-          priceString,
-          pricePerUnitString: "",
-          unit: "ud",
-          imageUrl,
-          barcode,
+          name: f.name?.stringValue || '',
+          price: f.price?.doubleValue ?? (f.price?.integerValue ? parseFloat(f.price.integerValue) : null),
+          pricePerUnitString: f.pricePerUnitString?.stringValue || '',
+          unit: f.unit?.stringValue || 'ud',
+          imageUrl: f.imageUrl?.stringValue || '',
         };
       })
-    );
+      .filter((p: any) => {
+        if (!p.name) return false;
+        const name = normalize(p.name);
+        return words.every((w: string) => name.includes(w));
+      })
+      .slice(0, 25);
 
-    const filtered = products.filter((p: any) => p.name.length > 2);
-    return res.status(200).json({ products: filtered, source: "openfoodfacts" });
+    return res.status(200).json({ products, source: 'firestore_catalog', total: docs.length });
 
   } catch (err) {
-    return res.status(200).json({ products: [], source: "error", error: String(err) });
+    console.error('[mercadona-search] Error:', err);
+    return res.status(200).json({ products: [], source: 'error', error: String(err) });
   }
 }
