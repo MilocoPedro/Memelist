@@ -230,31 +230,6 @@ const renderMyProductIcon = (name: string, remoteUrl?: string) => {
         <path d="M16 10a4 4 0 01-8 0" />
       </svg>
     </div>
-      {/* Modal zoom imagen */}
-      {zoomImage && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
-          onClick={() => setZoomImage(null)}
-        >
-          <div
-            className="relative bg-white rounded-3xl p-4 max-w-sm w-full mx-4 shadow-2xl"
-            onClick={e => e.stopPropagation()}
-          >
-            <button
-              onClick={() => setZoomImage(null)}
-              className="absolute top-3 right-3 bg-slate-100 hover:bg-slate-200 rounded-full w-8 h-8 flex items-center justify-center text-slate-600 text-lg font-bold transition"
-            >
-              ×
-            </button>
-            <img
-              src={zoomImage.url}
-              alt={zoomImage.name}
-              className="w-full h-64 object-contain rounded-2xl"
-            />
-            <p className="text-center text-sm font-semibold text-slate-700 mt-3 px-2">{zoomImage.name}</p>
-          </div>
-        </div>
-      )}
   );
 };
 
@@ -905,6 +880,31 @@ export const ShoppingListDashboard: React.FC<ShoppingListDashboardProps> = ({
         )}
       </div>
     </div>
+      {/* Modal zoom imagen */}
+      {zoomImage && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
+          onClick={() => setZoomImage(null)}
+        >
+          <div
+            className="relative bg-white rounded-3xl p-4 max-w-sm w-full mx-4 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={() => setZoomImage(null)}
+              className="absolute top-3 right-3 bg-slate-100 hover:bg-slate-200 rounded-full w-8 h-8 flex items-center justify-center text-slate-600 text-lg font-bold transition"
+            >
+              ×
+            </button>
+            <img
+              src={zoomImage.url}
+              alt={zoomImage.name}
+              className="w-full h-64 object-contain rounded-2xl"
+            />
+            <p className="text-center text-sm font-semibold text-slate-700 mt-3 px-2">{zoomImage.name}</p>
+          </div>
+        </div>
+      )}
       {/* Modal zoom imagen */}
       {zoomImage && (
         <div
