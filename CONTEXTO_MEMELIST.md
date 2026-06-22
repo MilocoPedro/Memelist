@@ -1,7 +1,7 @@
 # MemeList — Contexto del Proyecto
 
 ## Proyecto: MemeList
-**Stack:** React 19 + TS + Vite + Tailwind | Firebase Auth (Google) + Firestore | Express (server.ts) | Gemini API  
+**Stack:** React 19 + TS + Vite + Tailwind | Firebase Auth (Google) + Firestore | Vercel Serverless Functions | Gemini API
 **Deploy:** Vercel | **Repo:** github.com/MilocoPedro/Memelist | **Prod:** memelist.vercel.app
 
 ---
@@ -10,9 +10,10 @@
 | Componente | Estado | Notas |
 |---|---|---|
 | Firebase Auth | ✅ OK | Proyecto memelist-95059, dominio Vercel autorizado |
-| Firestore | ⚠️ Parcial | Reglas corregidas pendientes de aplicar en nuevo proyecto |
-| API Mercadona | ❌ Roto | Express no funciona en Vercel — necesita Serverless Functions |
-| Captura imágenes/precios | ❌ Roto | Pendiente tras resolver API Mercadona |
+| Firestore | ✅ OK | Reglas publicadas, mercadona_catalog con read/write: true |
+| Búsqueda catálogo Mercadona | ✅ OK | api/mercadona-search.ts lee de Firestore, filtra en memoria |
+| Scroll resultados búsqueda | ✅ OK | max-h-[600px], hasta 50 resultados |
+| Captura productos (extensión) | ✅ OK | ~3900+ productos en mercadona_catalog |
 | Sincronización tiempo real | ⚠️ Sin probar | — |
 
 ---
@@ -22,24 +23,24 @@
 |---|---|---|
 | src/firebase.ts | Config embebida, apunta a memelist-95059 | ✅ |
 | src/hooks/useShoppingData.ts | firestoreItem limpio sin campos undefined | ✅ |
-| firestore.rules | isValidItem con hasAll()+hasOnly(), acepta addedByName e imageUrl opcionales | ✅ pendiente publicar |
+| firestore.rules | isValidItem con hasAll()+hasOnly(), mercadona_catalog read/write: true | ✅ |
+| api/mercadona-search.ts | Reescrito: lee Firestore REST API, sin filtro WHERE, slice(0,50), parseFirestoreNumber() robusto | ✅ |
+| src/components/ShoppingListDashboard.tsx | max-h-[300px] → max-h-[600px], pr-1 → pr-2 | ✅ |
 
 ---
 
 ### Problemas conocidos
 | Prioridad | Problema | Causa | Acción |
 |---|---|---|---|
-| 🔴 Alta | Reglas Firestore sin aplicar | Nuevo proyecto tiene reglas por defecto (todo denegado) | Copiar firestore.rules en consola Firebase → Publicar |
-| 🔴 Alta | /api/mercadona/search da 404 | Vercel no ejecuta Express monolítico | Convertir server.ts a Vercel API Routes (/api/) |
-| 🟡 Media | Captura imágenes/precios rota | Depende de API Mercadona | Analizar tras resolver API |
+| 🟡 Media | useEffect busca toallitas wc al cambiar CP | Búsqueda automática con query vacía | Condicionar a mercadonaQuery.trim() |
+| 🟡 Media | isValidItem size() == 10 aún fragil | No usa hasOnly() completo | Refactor pendiente |
 
 ---
 
 ### Próximos pasos
-1. Aplicar firestore.rules al proyecto memelist-95059
-2. Convertir server.ts a Vercel API Routes
-3. Revisar captura de imágenes y precios
-4. Probar sincronización en tiempo real
+1. Corregir useEffect del código postal (bug #4)
+2. Probar sincronización en tiempo real entre usuarios
+3. Revisar isValidItem con hasOnly() completo
 
 ---
 
@@ -49,4 +50,5 @@
 | Firebase Project ID | memelist-95059 |
 | Auth domain | memelist-95059.firebaseapp.com |
 | Cuenta Firebase | miloco3d@gmail.com |
-| OAuth callback | memelist.vercel.app/__/auth/handler |
+| Extensión | Brave/Chrome, captura tienda.mercadona.es → mercadona_catalog |
+| Catálogo | ~3900+ productos en Firestore |
