@@ -633,7 +633,7 @@ export const ShoppingListDashboard: React.FC<ShoppingListDashboardProps> = ({
                       <span className="text-xs font-semibold">Buscando productos y precios de Mercadona...</span>
                     </div>
                   ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 px-0.5 max-h-[300px] overflow-y-auto pr-1">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 px-0.5 max-h-[600px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
                       {mercadonaResults.map((prod) => {
                         const isAlreadyAdded = items.some(
                           i => i.name.toLowerCase() === prod.name.toLowerCase() && !i.checked
