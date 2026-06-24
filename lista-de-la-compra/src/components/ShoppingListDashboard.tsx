@@ -212,24 +212,41 @@ export const ShoppingListDashboard: React.FC<ShoppingListDashboardProps> = ({
   const [isEditingCP, setIsEditingCP] = useState(false);
   const [cpTempInput, setCpTempInput] = useState(postalCode);
 
+  // Catálogo cargado una vez en memoria desde /public/catalog.json
+  const catalogRef = React.useRef<any[] | null>(null);
+
+  const loadCatalog = async (): Promise<any[]> => {
+    if (catalogRef.current) return catalogRef.current;
+    const resp = await fetch('/catalog.json');
+    if (!resp.ok) throw new Error('Error cargando catálogo');
+    catalogRef.current = await resp.json();
+    return catalogRef.current!;
+  };
+
+  const normalize = (str: string) =>
+    str.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+
   const fetchMercadonaProducts = async (q: string) => {
     if (!q.trim()) return;
     setLoadingMercadona(true);
     setMercadonaError('');
     try {
-      const resp = await fetch(`/api/mercadona-search?q=${encodeURIComponent(q)}`);
-      if (resp.ok) {
-        const data = await resp.json();
-        const products = data.products || [];
-        setMercadonaResults(products);
-        if (products.length === 0) {
-          setMercadonaError('Sin resultados. Prueba con otro término o captura más productos con la extensión.');
-        }
-      } else {
-        setMercadonaError('Error al buscar en el catálogo.');
+      const catalog = await loadCatalog();
+      const words = normalize(q).split(/\s+/).filter(Boolean);
+      const products = catalog
+        .filter((p: any) => {
+          if (!p.name) return false;
+          const n = normalize(p.name);
+          return words.every((w: string) => n.includes(w));
+        })
+        .slice(0, 50);
+      setMercadonaResults(products);
+      if (products.length === 0) {
+        setMercadonaError('Sin resultados. Prueba con otro término.');
       }
     } catch (err) {
-      setMercadonaError('Error al contactar con el buscador.');
+      setMercadonaError('Error al cargar el catálogo.');
+      console.error(err);
     } finally {
       setLoadingMercadona(false);
     }
