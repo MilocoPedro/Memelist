@@ -17,25 +17,20 @@ function getCatalog(): any[] {
 
   const candidates = [
     join(dirname(__filename), "catalog.json"),
+    "/vercel/path0/lista-de-la-compra/api/catalog.json",
     join(process.cwd(), "api", "catalog.json"),
     join(process.cwd(), "lista-de-la-compra", "api", "catalog.json"),
-    "/var/task/api/catalog.json",
-    "/var/task/lista-de-la-compra/api/catalog.json",
   ];
 
   for (const p of candidates) {
     if (existsSync(p)) {
-      const raw = readFileSync(p, "utf-8");
-      catalog = JSON.parse(raw);
+      catalog = JSON.parse(readFileSync(p, "utf-8"));
       console.log("[catalog] OK:", p, "productos:", catalog!.length);
       return catalog!;
     }
   }
 
-  // Log all tried paths for debugging
-  console.error("[catalog] No encontrado. Rutas probadas:", candidates.join(", "));
-  console.error("[catalog] cwd:", process.cwd(), "__filename:", __filename);
-  throw new Error("catalog.json no encontrado");
+  throw new Error("catalog.json no encontrado. Rutas: " + candidates.join(", "));
 }
 
 export default function handler(req: VercelRequest, res: VercelResponse) {
