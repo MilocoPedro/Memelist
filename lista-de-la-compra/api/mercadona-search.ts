@@ -1,55 +1,26 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
+import { readFileSync } from "fs";
+import { join } from "path";
 
-const FIRESTORE_PROJECT = "memelist-95059";
-const FIREBASE_API_KEY = "AIzaSyCll51GiaeJo0VzpTJPG-lyxelF_oeUbms";
-const BASE_URL = `https://firestore.googleapis.com/v1/projects/${FIRESTORE_PROJECT}/databases/(default)/documents:runQuery?key=${FIREBASE_API_KEY}`;
+let catalog: any[] | null = null;
+
+function getCatalog(): any[] {
+  if (catalog) return catalog;
+  const filePath = join(process.cwd(), "public", "catalog.json");
+  const raw = readFileSync(filePath, "utf-8");
+  catalog = JSON.parse(raw);
+  return catalog!;
+}
 
 function normalize(str: string): string {
   return str
     .toLowerCase()
     .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[̀-ͯ]/g, "")
     .trim();
 }
 
-function parseFirestoreNumber(field: any): number | null {
-  if (!field) return null;
-  if ("doubleValue" in field) return parseFloat(field.doubleValue);
-  if ("integerValue" in field) return parseFloat(field.integerValue);
-  return null;
-}
-
-async function fetchPage(offset: number, limit: number): Promise<any[]> {
-  const body = {
-    structuredQuery: {
-      from: [{ collectionId: "mercadona_catalog" }],
-      limit,
-      offset,
-    },
-  };
-
-  const resp = await fetch(BASE_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-
-  if (!resp.ok) return [];
-
-  const data = await resp.json();
-  return data.filter((row: any) => row.document).map((row: any) => {
-    const f = row.document.fields || {};
-    return {
-      name: f.name?.stringValue || "",
-      price: parseFirestoreNumber(f.price),
-      pricePerUnitString: f.pricePerUnitString?.stringValue || "",
-      unit: f.unit?.stringValue || "ud",
-      imageUrl: f.imageUrl?.stringValue || "",
-    };
-  });
-}
-
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+export default function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
   if (req.method === "OPTIONS") return res.status(200).end();
@@ -57,24 +28,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const raw = (req.query.q as string || "").trim();
   if (!raw) return res.status(400).json({ products: [] });
 
-  const query = normalize(raw);
-  const words = query.split(/\s+/).filter(Boolean);
+  const words = normalize(raw).split(/\s+/).filter(Boolean);
 
   try {
-    // Fetch 8 páginas de 500 en paralelo = 4000 documentos totales
-    const pages = await Promise.all([
-      fetchPage(0, 500),
-      fetchPage(500, 500),
-      fetchPage(1000, 500),
-      fetchPage(1500, 500),
-      fetchPage(2000, 500),
-      fetchPage(2500, 500),
-      fetchPage(3000, 500),
-      fetchPage(3500, 500),
-    ]);
-
-    const all = pages.flat();
-
+    const all = getCatalog();
     const products = all
       .filter((p: any) => {
         if (!p.name) return false;
@@ -83,11 +40,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       })
       .slice(0, 50);
 
-    console.log(`[search] query="${raw}" → ${products.length} resultados de ${all.length} productos`);
-    return res.status(200).json({ products, source: "firestore_catalog" });
-
+    console.log("[search] query='" + raw + "' → " + products.length + " resultados de " + all.length);
+    return res.status(200).json({ products, source: "static_catalog" });
   } catch (err) {
     console.error("[search] Error:", err);
-    return res.status(200).json({ products: [], source: "error", error: String(err) });
+    return res.status(500).json({ products: [], source: "error", error: String(err) });
   }
 }
