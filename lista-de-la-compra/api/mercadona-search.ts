@@ -1,7 +1,8 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
+import { readFileSync, existsSync } from "fs";
+import { join, dirname } from "path";
 
-// Catalog importado directamente como modulo para que Vercel lo incluya en el bundle
-import catalog from "./catalog.json";
+let catalog: any[] | null = null;
 
 function normalize(str: string): string {
   return str
@@ -9,6 +10,32 @@ function normalize(str: string): string {
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .trim();
+}
+
+function getCatalog(): any[] {
+  if (catalog) return catalog;
+
+  const candidates = [
+    join(dirname(__filename), "catalog.json"),
+    join(process.cwd(), "api", "catalog.json"),
+    join(process.cwd(), "lista-de-la-compra", "api", "catalog.json"),
+    "/var/task/api/catalog.json",
+    "/var/task/lista-de-la-compra/api/catalog.json",
+  ];
+
+  for (const p of candidates) {
+    if (existsSync(p)) {
+      const raw = readFileSync(p, "utf-8");
+      catalog = JSON.parse(raw);
+      console.log("[catalog] OK:", p, "productos:", catalog!.length);
+      return catalog!;
+    }
+  }
+
+  // Log all tried paths for debugging
+  console.error("[catalog] No encontrado. Rutas probadas:", candidates.join(", "));
+  console.error("[catalog] cwd:", process.cwd(), "__filename:", __filename);
+  throw new Error("catalog.json no encontrado");
 }
 
 export default function handler(req: VercelRequest, res: VercelResponse) {
@@ -21,14 +48,19 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
 
   const words = normalize(raw).split(/\s+/).filter(Boolean);
 
-  const products = (catalog as any[])
-    .filter((p: any) => {
-      if (!p.name) return false;
-      const normalized = normalize(p.name);
-      return words.every((w: string) => normalized.includes(w));
-    })
-    .slice(0, 50);
+  try {
+    const all = getCatalog();
+    const products = all
+      .filter((p: any) => {
+        if (!p.name) return false;
+        return words.every((w: string) => normalize(p.name).includes(w));
+      })
+      .slice(0, 50);
 
-  console.log("[search] query='" + raw + "' resultados=" + products.length + " de " + (catalog as any[]).length);
-  return res.status(200).json({ products, source: "static_catalog" });
+    console.log("[search] '" + raw + "' -> " + products.length + " de " + all.length);
+    return res.status(200).json({ products, source: "static_catalog" });
+  } catch (err) {
+    console.error("[search] Error:", String(err));
+    return res.status(500).json({ products: [], source: "error", error: String(err) });
+  }
 }
