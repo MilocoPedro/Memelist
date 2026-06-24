@@ -4,20 +4,32 @@ import { join } from "path";
 
 let catalog: any[] | null = null;
 
-function getCatalog(): any[] {
-  if (catalog) return catalog;
-  const filePath = join(process.cwd(), "public", "catalog.json");
-  const raw = readFileSync(filePath, "utf-8");
-  catalog = JSON.parse(raw);
-  return catalog!;
-}
-
 function normalize(str: string): string {
   return str
     .toLowerCase()
     .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
+    .replace(/[\u0300-\u036f]/g, "")
     .trim();
+}
+
+function getCatalog(): any[] {
+  if (catalog) return catalog;
+  // Vercel sirve /public como raiz del proyecto
+  const paths = [
+    join(process.cwd(), "public", "catalog.json"),
+    join(__dirname, "..", "public", "catalog.json"),
+    join(__dirname, "../../public", "catalog.json"),
+    "/var/task/public/catalog.json",
+  ];
+  for (const p of paths) {
+    try {
+      const raw = readFileSync(p, "utf-8");
+      catalog = JSON.parse(raw);
+      console.log("[catalog] Cargado desde:", p, "productos:", catalog!.length);
+      return catalog!;
+    } catch {}
+  }
+  throw new Error("catalog.json no encontrado en ninguna ruta");
 }
 
 export default function handler(req: VercelRequest, res: VercelResponse) {
@@ -40,7 +52,7 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
       })
       .slice(0, 50);
 
-    console.log("[search] query='" + raw + "' → " + products.length + " resultados de " + all.length);
+    console.log("[search] query='" + raw + "' resultados=" + products.length + " de " + all.length);
     return res.status(200).json({ products, source: "static_catalog" });
   } catch (err) {
     console.error("[search] Error:", err);
