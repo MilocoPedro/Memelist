@@ -237,7 +237,20 @@ export const ShoppingListDashboard: React.FC<ShoppingListDashboardProps> = ({
         .filter((p: any) => {
           if (!p.name) return false;
           const n = normalize(p.name);
-          return words.every((w: string) => n.includes(w));
+          // Cada palabra del query debe coincidir como palabra completa en el nombre
+          return words.every((w: string) => {
+            const regex = new RegExp('(^|[^a-z0-9áéíóúüñ])' + w.replace(/[.*+?^${}()|[\]\\]/g, '\\\\$&') + '([^a-z0-9áéíóúüñ]|$)', 'i');
+            return regex.test(n);
+          });
+        })
+        .sort((a: any, b: any) => {
+          // Primero los que empiezan por la query
+          const na = normalize(a.name);
+          const nb = normalize(b.name);
+          const q0 = normalize(q);
+          const aStarts = na.startsWith(q0) ? 0 : 1;
+          const bStarts = nb.startsWith(q0) ? 0 : 1;
+          return aStarts - bStarts;
         })
         .slice(0, 50);
       setMercadonaResults(products);
