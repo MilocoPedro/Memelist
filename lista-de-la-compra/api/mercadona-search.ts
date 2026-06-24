@@ -1,6 +1,5 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { readFileSync } from "fs";
-import { join, dirname } from "path";
 
 let catalog: any[] | null = null;
 
@@ -14,10 +13,9 @@ function normalize(str: string): string {
 
 function getCatalog(): any[] {
   if (catalog) return catalog;
-  const p = join(dirname(__filename), "catalog.json");
-  console.log("[catalog] Intentando:", p);
-  const raw = readFileSync(p, "utf-8");
-  catalog = JSON.parse(raw);
+  // Vercel expone /public como /var/task/public en funciones serverless
+  const p = "/var/task/public/catalog.json";
+  catalog = JSON.parse(readFileSync(p, "utf-8"));
   console.log("[catalog] OK, productos:", catalog!.length);
   return catalog!;
 }
