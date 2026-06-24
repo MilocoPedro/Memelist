@@ -237,14 +237,20 @@ export const ShoppingListDashboard: React.FC<ShoppingListDashboardProps> = ({
         .filter((p: any) => {
           if (!p.name) return false;
           const n = normalize(p.name);
-          // Cada palabra del query debe coincidir como palabra completa en el nombre
           return words.every((w: string) => {
-            const regex = new RegExp('(^|[^a-z0-9áéíóúüñ])' + w.replace(/[.*+?^${}()|[\]\\]/g, '\\\\$&') + '([^a-z0-9áéíóúüñ]|$)', 'i');
+            const escaped = w.replace(/[.*+?^${}()|[\]\\]/g, '\\\\$&');
+            if (w.length <= 3) {
+              // Palabras cortas: coincidencia exacta como palabra completa
+              const regex = new RegExp('(^|\\\\s)' + escaped + '(\\\\s|$)', 'i');
+              return regex.test(n);
+            }
+            // Palabras largas: el nombre debe contener la palabra como prefijo de token
+            // Ej: "espagueti" encuentra "espaguetis", "espagueti con..."
+            const regex = new RegExp('(^|\\\\s)' + escaped, 'i');
             return regex.test(n);
           });
         })
         .sort((a: any, b: any) => {
-          // Primero los que empiezan por la query
           const na = normalize(a.name);
           const nb = normalize(b.name);
           const q0 = normalize(q);
