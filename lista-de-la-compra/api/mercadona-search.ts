@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { readFileSync, existsSync } from "fs";
+import { readFileSync } from "fs";
 import { join, dirname } from "path";
 
 let catalog: any[] | null = null;
@@ -14,23 +14,12 @@ function normalize(str: string): string {
 
 function getCatalog(): any[] {
   if (catalog) return catalog;
-
-  const candidates = [
-    join(dirname(__filename), "catalog.json"),
-    "/vercel/path0/lista-de-la-compra/api/catalog.json",
-    join(process.cwd(), "api", "catalog.json"),
-    join(process.cwd(), "lista-de-la-compra", "api", "catalog.json"),
-  ];
-
-  for (const p of candidates) {
-    if (existsSync(p)) {
-      catalog = JSON.parse(readFileSync(p, "utf-8"));
-      console.log("[catalog] OK:", p, "productos:", catalog!.length);
-      return catalog!;
-    }
-  }
-
-  throw new Error("catalog.json no encontrado. Rutas: " + candidates.join(", "));
+  const p = join(dirname(__filename), "catalog.json");
+  console.log("[catalog] Intentando:", p);
+  const raw = readFileSync(p, "utf-8");
+  catalog = JSON.parse(raw);
+  console.log("[catalog] OK, productos:", catalog!.length);
+  return catalog!;
 }
 
 export default function handler(req: VercelRequest, res: VercelResponse) {
