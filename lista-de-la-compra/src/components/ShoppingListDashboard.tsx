@@ -233,30 +233,33 @@ export const ShoppingListDashboard: React.FC<ShoppingListDashboardProps> = ({
     try {
       const catalog = await loadCatalog();
       const words = normalize(q).split(/\s+/).filter(Boolean);
+      const q0 = normalize(q);
       const products = catalog
         .filter((p: any) => {
           if (!p.name) return false;
-          const n = normalize(p.name);
+          // Texto normalizado con espacios delimitadores para matching de tokens
+          const n = ' ' + normalize(p.name) + ' ';
           return words.every((w: string) => {
-            const escaped = w.replace(/[.*+?^${}()|[\]\\]/g, '\\\\$&');
+            // Busca la palabra precedida de no-letra: permite "espagueti" -> "espaguetis"
+            // pero "sal" no encuentra "salsa" (salsa empieza por "sal" pero "sal" solo matchea token)
             if (w.length <= 3) {
-              // Palabras cortas: coincidencia exacta como palabra completa
-              const regex = new RegExp('(^|\\\\s)' + escaped + '(\\\\s|$)', 'i');
-              return regex.test(n);
+              // Palabras cortas: token exacto (sal != salsa)
+              return n.includes(' ' + w + ' ');
             }
-            // Palabras largas: el nombre debe contener la palabra como prefijo de token
-            // Ej: "espagueti" encuentra "espaguetis", "espagueti con..."
-            const regex = new RegExp('(^|\\\\s)' + escaped, 'i');
-            return regex.test(n);
+            // Palabras largas: prefijo de token (espagueti -> espaguetis OK)
+            const idx = n.indexOf(' ' + w);
+            return idx !== -1;
           });
         })
         .sort((a: any, b: any) => {
           const na = normalize(a.name);
           const nb = normalize(b.name);
-          const q0 = normalize(q);
-          const aStarts = na.startsWith(q0) ? 0 : 1;
-          const bStarts = nb.startsWith(q0) ? 0 : 1;
-          return aStarts - bStarts;
+          // Prioridad 1: nombre empieza exactamente por la query
+          const aExact = na.startsWith(q0) ? 0 : 1;
+          const bExact = nb.startsWith(q0) ? 0 : 1;
+          if (aExact !== bExact) return aExact - bExact;
+          // Prioridad 2: orden alfabético
+          return na.localeCompare(nb);
         })
         .slice(0, 50);
       setMercadonaResults(products);
