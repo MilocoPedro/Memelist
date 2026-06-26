@@ -55,12 +55,14 @@ export const AuthBar: React.FC<AuthBarProps> = ({
 
   return (
     <div className="bg-slate-50 border border-slate-100 p-4 rounded-3xl flex flex-col sm:flex-row items-center justify-between gap-4 relative">
-      {/* Configuration Status Badge */}
-      <div className="flex items-center gap-2">
-        <div className={`w-2.5 h-2.5 rounded-full ${isFirebaseConfigured ? 'bg-pink-500 animate-pulse' : 'bg-pink-400 animate-pulse'}`}></div>
-        <span className="text-xs font-bold text-slate-600 select-none">
-          Sincronización: {isFirebaseConfigured ? 'Firebase Realtime [ACTIVO]' : 'Local Offline / Demo [ACTIVO]'}
-        </span>
+      {/* Sync icon */}
+      <div className="flex items-center justify-center w-8 h-8 rounded-xl bg-pink-50 border border-pink-100" title="Sincronización activa">
+        <svg className="w-4 h-4 text-pink-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M23 4v6h-6"/>
+          <path d="M1 20v-6h6"/>
+          <path d="M3.51 9a9 9 0 0114.85-3.36L23 10"/>
+          <path d="M20.49 15a9 9 0 01-14.85 3.36L1 14"/>
+        </svg>
       </div>
 
       {user ? (
