@@ -244,6 +244,9 @@ export function useShoppingData(user: { uid: string; email: string; displayName?
         await updateDoc(doc(db, 'lists', listId), listUpdates);
       } catch (error) {
         handleFirestoreError(error, OperationType.UPDATE, path);
+        // Re-lanzamos para que la UI (ej. el diálogo de compartir) pueda
+        // mostrar un aviso real en vez de fallar en silencio.
+        throw error;
       }
     } else {
       const current = LocalPersistenceEngine.getLists();

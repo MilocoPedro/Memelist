@@ -24,7 +24,10 @@ export default function App() {
       displayName: 'Miguel (Tú)',
     };
   });
-  const [activeSettingsList, setActiveSettingsList] = useState<ShoppingList | null>(null);
+  // Guardamos solo el ID, no el objeto: así el diálogo de ajustes siempre lee
+  // la versión más reciente de la lista (sincronizada con Firestore) en cada render,
+  // en vez de quedarse con una foto fija del momento en que se abrió.
+  const [activeSettingsListId, setActiveSettingsListId] = useState<string | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // Subscribe to real Firebase authentication states
@@ -80,6 +83,7 @@ export default function App() {
   } = useShoppingData(activeUser, !firebaseUser);
 
   const activeList = lists.find((l) => l.id === activeListId) || null;
+  const activeSettingsList = lists.find((l) => l.id === activeSettingsListId) || null;
 
   const handleSetMockUser = (user: any) => {
     setMockUser(user);
@@ -136,6 +140,20 @@ export default function App() {
           </div>
 
           <div className="flex items-center gap-2">
+            <span
+              className={`select-none text-[10px] font-extrabold uppercase tracking-wider px-2 py-1 rounded-full ${
+                isLocalMode
+                  ? 'bg-purple-100 text-purple-700'
+                  : 'bg-emerald-100 text-emerald-700'
+              }`}
+              title={
+                isLocalMode
+                  ? 'Modo Local: tus cambios solo se guardan en este navegador, NO se comparten con otros usuarios.'
+                  : 'Modo Nube: tus cambios se sincronizan en tiempo real con Firebase.'
+              }
+            >
+              {isLocalMode ? '🚀 Local' : '☁️ Nube'}
+            </span>
             <span className="hidden select-none sm:inline-block text-[11px] font-bold text-slate-400 tracking-wider uppercase">
               {activeUser ? `Conectado: ${activeUser.email}` : 'No identificado'}
             </span>
@@ -177,7 +195,7 @@ export default function App() {
               }}
               onCreateList={createList}
               items={items}
-              onOpenSettings={(l) => setActiveSettingsList(l)}
+              onOpenSettings={(l) => setActiveSettingsListId(l.id)}
               currentUserEmail={activeUser?.email}
             />
           </div>
@@ -205,7 +223,7 @@ export default function App() {
                       onCreateList={createList}
                       items={items}
                       onOpenSettings={(l) => {
-                        setActiveSettingsList(l);
+                        setActiveSettingsListId(l.id);
                         setMobileMenuOpen(false);
                       }}
                       currentUserEmail={activeUser?.email}
@@ -271,7 +289,7 @@ export default function App() {
             list={activeSettingsList}
             onUpdate={updateList}
             onDelete={deleteList}
-            onClose={() => setActiveSettingsList(null)}
+            onClose={() => setActiveSettingsListId(null)}
             currentUserEmail={activeUser?.email}
           />
         )}

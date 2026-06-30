@@ -26,9 +26,14 @@ export const ListSettingsDialog: React.FC<ListSettingsDialogProps> = ({
   const handleSaveName = async () => {
     if (!name.trim()) return;
     setSavingMsg('Guardando...');
-    await onUpdate(list.id, { name: name.trim() });
-    setSavingMsg('Guardado ✅');
-    setTimeout(() => setSavingMsg(''), 2000);
+    try {
+      await onUpdate(list.id, { name: name.trim() });
+      setSavingMsg('Guardado ✅');
+    } catch (error) {
+      console.error('Error al guardar el nombre de la lista:', error);
+      setSavingMsg('❌ Error al guardar (revisa la conexión o permisos)');
+    }
+    setTimeout(() => setSavingMsg(''), 3000);
   };
 
   const handleAddEmail = async (e: React.FormEvent) => {
@@ -46,13 +51,26 @@ export const ListSettingsDialog: React.FC<ListSettingsDialogProps> = ({
     }
 
     const updatedSharedWith = [...list.sharedWith, cleanEmail];
-    await onUpdate(list.id, { sharedWith: updatedSharedWith });
-    setNewEmail('');
+    try {
+      await onUpdate(list.id, { sharedWith: updatedSharedWith });
+      setNewEmail('');
+    } catch (error) {
+      console.error('Error al compartir la lista:', error);
+      alert(
+        'No se ha podido compartir la lista. Puede ser un problema de permisos o de conexión con Firebase.\n\n' +
+        'Revisa la consola del navegador (F12) para más detalles, o inténtalo de nuevo en unos segundos.'
+      );
+    }
   };
 
   const handleRemoveEmail = async (emailToRemove: string) => {
     const updatedSharedWith = list.sharedWith.filter(email => email !== emailToRemove);
-    await onUpdate(list.id, { sharedWith: updatedSharedWith });
+    try {
+      await onUpdate(list.id, { sharedWith: updatedSharedWith });
+    } catch (error) {
+      console.error('Error al quitar el correo compartido:', error);
+      alert('No se ha podido actualizar la lista. Inténtalo de nuevo.');
+    }
   };
 
   const handleDelete = async () => {
