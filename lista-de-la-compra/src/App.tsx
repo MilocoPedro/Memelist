@@ -314,12 +314,24 @@ export default function App() {
               <button onClick={() => setShowDebugPanel(false)} className="text-slate-400 text-lg leading-none cursor-pointer">✕</button>
             </div>
             <div><span className="text-slate-400">Modo:</span> {isLocalMode ? '🚀 Local (NO sincroniza)' : '☁️ Nube (Firebase)'}</div>
-            <div><span className="text-slate-400">Email autenticado:</span> {activeUser?.email || '(ninguno)'}</div>
+            <div><span className="text-slate-400">Email autenticado:</span> "{activeUser?.email || '(ninguno)'}"</div>
+            <div><span className="text-slate-400">Longitud del email:</span> {activeUser?.email?.length ?? 0} caracteres</div>
+            <div className="break-all"><span className="text-slate-400">Códigos de carácter:</span> {activeUser?.email ? Array.from(activeUser.email as string).map((c: string) => c.charCodeAt(0)).join(',') : '(ninguno)'}</div>
             <div><span className="text-slate-400">UID:</span> {activeUser?.uid || '(ninguno)'}</div>
-            <div><span className="text-slate-400">Email usado en la query:</span> {debugInfo.queryEmail || '(ninguno)'}</div>
+            <div><span className="text-slate-400">Email usado en la query:</span> "{debugInfo.queryEmail || '(ninguno)'}"</div>
             <div><span className="text-slate-400">Listas propias encontradas:</span> {debugInfo.ownedCount}</div>
             <div><span className="text-slate-400">Listas compartidas encontradas:</span> {debugInfo.sharedCount}</div>
             <div><span className="text-slate-400">Total listas visibles:</span> {lists.length}</div>
+            {lists.length > 0 && (
+              <div className="mt-2 p-2 bg-slate-50 rounded-lg break-all">
+                <div className="font-bold text-slate-500 mb-1">📄 sharedWith de tus listas visibles:</div>
+                {lists.map((l) => (
+                  <div key={l.id} className="mb-1">
+                    <span className="text-slate-400">{l.name}:</span> {JSON.stringify(l.sharedWith)}
+                  </div>
+                ))}
+              </div>
+            )}
             {dbError && (
               <div className="mt-2 p-2 bg-red-50 text-red-700 rounded-lg break-words">
                 <div className="font-bold">⚠️ Último error Firestore:</div>
