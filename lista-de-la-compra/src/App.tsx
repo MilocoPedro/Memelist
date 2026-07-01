@@ -28,6 +28,7 @@ export default function App() {
   // la versión más reciente de la lista (sincronizada con Firestore) en cada render,
   // en vez de quedarse con una foto fija del momento en que se abrió.
   const [activeSettingsListId, setActiveSettingsListId] = useState<string | null>(null);
+  const [showDebugPanel, setShowDebugPanel] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // Subscribe to real Firebase authentication states
@@ -80,6 +81,7 @@ export default function App() {
     clearCheckedItems,
     isLocalMode,
     dbError,
+    debugInfo,
   } = useShoppingData(activeUser, !firebaseUser);
 
   const activeList = lists.find((l) => l.id === activeListId) || null;
@@ -140,20 +142,22 @@ export default function App() {
           </div>
 
           <div className="flex items-center gap-2">
-            <span
-              className={`select-none text-[10px] font-extrabold uppercase tracking-wider px-2 py-1 rounded-full ${
+            <button
+              type="button"
+              onClick={() => setShowDebugPanel(v => !v)}
+              className={`select-none text-[10px] font-extrabold uppercase tracking-wider px-2 py-1 rounded-full cursor-pointer ${
                 isLocalMode
                   ? 'bg-purple-100 text-purple-700'
                   : 'bg-emerald-100 text-emerald-700'
               }`}
               title={
                 isLocalMode
-                  ? 'Modo Local: tus cambios solo se guardan en este navegador, NO se comparten con otros usuarios.'
-                  : 'Modo Nube: tus cambios se sincronizan en tiempo real con Firebase.'
+                  ? 'Modo Local: tus cambios solo se guardan en este navegador, NO se comparten con otros usuarios. Toca para ver diagnóstico.'
+                  : 'Modo Nube: tus cambios se sincronizan en tiempo real con Firebase. Toca para ver diagnóstico.'
               }
             >
               {isLocalMode ? '🚀 Local' : '☁️ Nube'}
-            </span>
+            </button>
             <span className="hidden select-none sm:inline-block text-[11px] font-bold text-slate-400 tracking-wider uppercase">
               {activeUser ? `Conectado: ${activeUser.email}` : 'No identificado'}
             </span>
@@ -294,6 +298,41 @@ export default function App() {
           />
         )}
       </AnimatePresence>
+
+      {/* Panel de diagnóstico: se abre pulsando el badge Nube/Local, útil en móvil sin DevTools */}
+      {showDebugPanel && (
+        <div
+          className="fixed inset-0 z-[100] bg-black/50 flex items-center justify-center p-4"
+          onClick={() => setShowDebugPanel(false)}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-xl max-w-sm w-full p-5 text-xs space-y-2 font-mono"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="font-bold text-sm text-slate-800">🔍 Diagnóstico</h3>
+              <button onClick={() => setShowDebugPanel(false)} className="text-slate-400 text-lg leading-none cursor-pointer">✕</button>
+            </div>
+            <div><span className="text-slate-400">Modo:</span> {isLocalMode ? '🚀 Local (NO sincroniza)' : '☁️ Nube (Firebase)'}</div>
+            <div><span className="text-slate-400">Email autenticado:</span> {activeUser?.email || '(ninguno)'}</div>
+            <div><span className="text-slate-400">UID:</span> {activeUser?.uid || '(ninguno)'}</div>
+            <div><span className="text-slate-400">Email usado en la query:</span> {debugInfo.queryEmail || '(ninguno)'}</div>
+            <div><span className="text-slate-400">Listas propias encontradas:</span> {debugInfo.ownedCount}</div>
+            <div><span className="text-slate-400">Listas compartidas encontradas:</span> {debugInfo.sharedCount}</div>
+            <div><span className="text-slate-400">Total listas visibles:</span> {lists.length}</div>
+            {dbError && (
+              <div className="mt-2 p-2 bg-red-50 text-red-700 rounded-lg break-words">
+                <div className="font-bold">⚠️ Último error Firestore:</div>
+                <div>Código: {dbError.code || 'N/A'}</div>
+                <div>Mensaje: {dbError.error || 'N/A'}</div>
+              </div>
+            )}
+            {!dbError && (
+              <div className="mt-2 p-2 bg-emerald-50 text-emerald-700 rounded-lg">✅ Sin errores registrados</div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

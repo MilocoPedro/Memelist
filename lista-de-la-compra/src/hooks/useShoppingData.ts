@@ -21,6 +21,11 @@ export function useShoppingData(user: { uid: string; email: string; displayName?
   const [loading, setLoading] = useState(true);
   const [useLocalOverride, setUseLocalOverride] = useState(false);
   const [dbError, setDbError] = useState<any>(null);
+  const [debugInfo, setDebugInfo] = useState<{
+    ownedCount: number;
+    sharedCount: number;
+    queryEmail: string | null;
+  }>({ ownedCount: 0, sharedCount: 0, queryEmail: null });
 
   // Keep references to prevent stale closures in async listeners
   const userRef = useRef(user);
@@ -95,6 +100,11 @@ export function useShoppingData(user: { uid: string; email: string; displayName?
         });
         console.log(`📋 [useShoppingData] Lists collection updated. Total merged: ${combined.length} (Owned: ${ownedLists.length}, Shared: ${sharedLists.length})`);
         setLists(combined);
+        setDebugInfo({
+          ownedCount: ownedLists.length,
+          sharedCount: sharedLists.length,
+          queryEmail: userEmail || null,
+        });
 
         // If no active list selected, auto-select the first one
         if (combined.length > 0) {
@@ -458,5 +468,6 @@ export function useShoppingData(user: { uid: string; email: string; displayName?
     clearCheckedItems,
     isLocalMode,
     dbError,
+    debugInfo,
   };
 }
