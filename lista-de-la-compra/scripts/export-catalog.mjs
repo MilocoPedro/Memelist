@@ -49,11 +49,10 @@ async function fetchAllDocs() {
 async function main() {
   console.log("Exportando catálogo completo de Firestore...");
   const all = await fetchAllDocs();
-  const unique = [...new Map(all.map(p => [p.name, p])).values()];
-  console.log(`\nTotal: ${unique.length} productos únicos`);
+  console.log(`\nTotal: ${all.length} productos únicos`);
 
   const { writeFileSync } = await import("fs");
-  writeFileSync("public/catalog.json", JSON.stringify(unique));
+  writeFileSync("public/catalog.json", JSON.stringify(all));
   console.log("✅ Guardado en public/catalog.json");
 }
 
