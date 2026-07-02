@@ -12,7 +12,7 @@
 | Firebase Auth | ✅ OK | Proyecto memelist-95059, dominio Vercel autorizado |
 | Firestore | ✅ OK | Reglas publicadas, mercadona_catalog con read: true |
 | Búsqueda catálogo Mercadona | ✅ OK | Client-side: fetch('/catalog.json'), cache en useRef, ~3923 productos. api/mercadona-search.ts queda como legacy/sin uso |
-| Captura productos (extensión) | ✅ OK | Chrome/Brave, tienda.mercadona.es → mercadona_catalog |
+| Captura productos (extensión) | ✅ OK | Chrome/Brave (E:\memelist-extension), tienda.mercadona.es → chrome.storage.local → mercadona_catalog. IDs por producto/variante ya no colisionan (ver Cambios recientes) |
 | Export catálogo | ✅ OK | scripts/export-catalog.mjs (Firestore REST + pageToken, pageSize 300) → public/catalog.json |
 | Sincronización tiempo real | ⚠️ Sin probar | — |
 
@@ -21,6 +21,7 @@
 ### Cambios recientes
 | Archivo | Cambio | Estado |
 |---|---|---|
+| E:\memelist-extension\content.js | Fix: capturaba menos productos de los reales (ej. 28 de 36) por colisión de `id` — se generaba solo desde el nombre, y variantes del mismo producto (distinto formato/tamaño) comparten nombre y se sobrescribían en `chrome.storage.local`. Fix: selectores migrados a `[data-testid="product-cell"]`/`[data-testid="product-cell-name"]`/`[data-testid="product-price"]`; `id` ahora se genera desde el `aria-label` del botón `[data-testid="open-product-detail"]`, que incluye nombre+formato+precio/unidad y es único por variante. Se añade campo `format` extraído del aria-label | ✅ (2026-07-02) |
 | lista-de-la-compra/public/catalog.json | Catálogo estático, 3923 productos Mercadona | ✅ (2026-06-24) |
 | lista-de-la-compra/src/components/ShoppingListDashboard.tsx | Búsqueda Firestore → fetch('/catalog.json') | ✅ (2026-06-24) |
 | Vercel | Fix ruta absoluta /var/task/public/catalog.json | ✅ (2026-06-24) |
@@ -34,6 +35,7 @@
 | 🟡 Media | isValidList usa size() en vez de hasAll/hasOnly | Patrón frágil | Refactor pendiente |
 | 🟢 Baja | Archivos duplicados en raíz del repo (api/, src/) fuera de lista-de-la-compra/ | Restos previos a fijar subdirectorio como root Vercel | Limpiar si molesta, no afecta deploy |
 | 🟡 Media | api/mercadona/search sigue dando 404 | Rutas Express no migradas a Vercel API Routes (ya no es bloqueante: búsqueda usa catalog.json) | Revisar si aún se necesita |
+| 🟢 Baja | Caché local vieja de la extensión (IDs por nombre, pre-fix) puede seguir en chrome.storage.local de otras sesiones/equipos | IDs antiguos con colisiones | Borrar caché local ("🗑️ Borrar caché local") antes de resincronizar en cada equipo donde se use la extensión |
 
 ---
 
@@ -42,6 +44,8 @@
 2. Probar sincronización en tiempo real entre usuarios/dispositivos
 3. Refactor isValidList con hasAll()/hasOnly()
 4. Decidir si limpiar archivos duplicados de la raíz del repo
+5. Re-capturar catálogo completo con la extensión corregida y regenerar public/catalog.json (node scripts/export-catalog.mjs)
+6. Evaluar usar el nuevo campo `format` (tamaño/formato de producto) en la búsqueda del frontend
 
 ---
 
@@ -51,6 +55,6 @@
 | Firebase Project ID | memelist-95059 |
 | Auth domain | memelist-95059.firebaseapp.com |
 | Cuenta Firebase | miloco3d@gmail.com |
-| Extensión | Brave/Chrome, captura tienda.mercadona.es → mercadona_catalog |
+| Extensión | E:\memelist-extension — Brave/Chrome, captura tienda.mercadona.es → mercadona_catalog. Selectores: [data-testid="product-cell"|"product-cell-name"|"product-price"|"open-product-detail"] |
 | Catálogo | ~3923 productos, servido como public/catalog.json (no vía Firestore en runtime) |
 | Export catálogo | node scripts/export-catalog.mjs → public/catalog.json |
