@@ -1,62 +1,99 @@
-# MemeList — Contexto del Proyecto
+# MemeList — Contexto del Proyecto y Cambios Realizados
 
-## Proyecto: MemeList
-**Stack:** React 19 + TS + Vite + Tailwind | Firebase Auth (Google) + Firestore | Vercel Serverless Functions | Gemini API
-**Deploy:** Vercel (root: `lista-de-la-compra/`) | **Repo:** github.com/MilocoPedro/Memelist | **Prod:** memelist.vercel.app
+## Descripción de la app
+Lista de la compra inteligente y colaborativa. Permite a varios miembros de una familia añadir productos a diferentes listas compartidas, cada uno con su usuario y contraseña. Desplegada en Vercel, con Firebase como backend.
 
----
+## Stack tecnológico
+- **Frontend:** React + TypeScript + Vite + Tailwind CSS
+- **Base de datos:** Firebase Firestore
+- **Autenticación:** Firebase Authentication (Google)
+- **Despliegue:** Vercel
+- **Repositorio:** https://github.com/MilocoPedro/Memelist
+- **URL producción:** https://memelist.vercel.app
 
-### Estado actual
-| Componente | Estado | Notas |
-|---|---|---|
-| Firebase Auth | ✅ OK | Proyecto memelist-95059, dominio Vercel autorizado |
-| Firestore | ✅ OK | Reglas publicadas, mercadona_catalog con read: true. Colección limpiada de duplicados y resincronizada (4272 docs) |
-| Búsqueda catálogo Mercadona | ✅ OK | Client-side: fetch('/catalog.json'), cache en useRef, 4272 productos únicos (commit 62b862f, 2026-07-02) |
-| Captura productos (extensión) | ✅ OK | Chrome/Brave (E:\memelist-extension), tienda.mercadona.es → chrome.storage.local → mercadona_catalog. IDs por producto/variante ya no colisionan |
-| Export catálogo | ✅ OK | scripts/export-catalog.mjs (Firestore REST + pageToken, pageSize 300) → public/catalog.json. Ya NO deduplica por nombre (bug corregido, ver Cambios recientes) |
-| Sincronización tiempo real | ⚠️ Sin probar | — |
-
----
-
-### Cambios recientes
-| Archivo | Cambio | Estado |
-|---|---|---|
-| lista-de-la-compra/scripts/export-catalog.mjs | Bug: deduplicaba productos por `name` al exportar (`new Map(all.map(p => [p.name, p]))`), colapsando variantes de un mismo producto (mismo problema que ya se había arreglado en la extensión, pero reintroducido en este paso). Fix: se eliminó la deduplicación — Firestore ya garantiza IDs únicos por variante, no hace falta deduplicar de nuevo | ✅ (2026-07-02) |
-| Firestore mercadona_catalog | Se detectaron 8177 documentos tras la primera sincronización de la recaptura (4272 nuevos con ID correcto + ~3923 antiguos con ID basado en nombre, sin sobrescribirse por tener IDs distintos). Se creó scripts/wipe-catalog.mjs (lista+DELETE por REST, paginado) y se vació la colección completa, luego se resincronizó desde la extensión (4272 productos limpios) | ✅ (2026-07-02) |
-| lista-de-la-compra/public/catalog.json | Regenerado tras limpieza: 4272 productos únicos, sin colisiones de variante. Commit 62b862f | ✅ (2026-07-02) |
-| E:\memelist-extension\content.js | Fix: capturaba menos productos de los reales (ej. 28 de 36) por colisión de `id` generado solo desde el nombre. Fix: selectores migrados a `[data-testid="product-cell"|"product-cell-name"|"product-price"]`; `id` ahora se genera desde el `aria-label` de `[data-testid="open-product-detail"]` (nombre+formato+precio/unidad), único por variante. Añade campo `format` (NOTA: aún no se envía a Firestore, ver Próximos pasos) | ✅ (2026-07-02) |
-| firestore.rules | isValidItem con hasAll()+hasOnly(), mercadona_catalog read: true | ✅ |
+## Proyecto Firebase
+- **Proyecto:** MemeList
+- **Project ID:** memelist-95059
+- **Auth domain:** memelist-95059.firebaseapp.com
+- **Cuenta:** miloco3d@gmail.com
 
 ---
 
-### Problemas conocidos
-| Prioridad | Problema | Causa | Acción |
-|---|---|---|---|
-| 🟡 Media | isValidList usa size() en vez de hasAll/hasOnly | Patrón frágil | Refactor pendiente |
-| 🟢 Baja | Archivos duplicados en raíz del repo (api/, src/) fuera de lista-de-la-compra/ | Restos previos a fijar subdirectorio como root Vercel | Limpiar si molesta, no afecta deploy |
-| 🟡 Media | api/mercadona/search sigue dando 404 | Rutas Express no migradas a Vercel API Routes (ya no es bloqueante: búsqueda usa catalog.json) | Revisar si aún se necesita |
-| 🟢 Baja | Campo `format` de la extensión no llega a Firestore ni a catalog.json | popup.js (syncToFirestore) no incluye `format` en el PATCH; export-catalog.mjs tampoco lo lee | Añadir `format` al body del PATCH en popup.js y al mapeo de fetchAllDocs() en export-catalog.mjs, si se decide usarlo en la búsqueda |
+## Problemas identificados y estado
+
+### ✅ RESUELTO — Schema de items incompatible con Firestore
+**Problema:** La regla `isValidItem` en `firestore.rules` exigía exactamente 10 campos (`data.keys().size() == 10`), pero el código enviaba también `addedByName` e `imageUrl`, causando que Firestore rechazara todas las escrituras con `permission-denied` y la app cayera al modo local silenciosamente.
+
+**Solución aplicada:**
+- Modificado `firestore.rules`: reemplazado `size() == 10` por sistema de campos requeridos + opcionales usando `hasAll()` y `hasOnly()`
+- Modificado `src/hooks/useShoppingData.ts`: construcción de objeto `firestoreItem` limpio antes de enviar a Firestore, incluyendo `addedByName` e `imageUrl` solo si tienen valor real
+- Las reglas se aplicaron directamente desde la consola web de Firebase (no CLI por permisos)
+
+### ✅ RESUELTO — Config Firebase apuntaba al proyecto antiguo
+**Problema:** La app usaba el proyecto `just-chord-5s7sz` generado por Google AI Studio, sobre el que no había permisos de administrador. Imposible añadir dominios OAuth autorizados.
+
+**Solución aplicada:**
+- Creado nuevo proyecto Firebase `memelist-95059` con cuenta propia
+- Activado Authentication con Google
+- Activado Firestore en modo producción, región `eur3 (europe-west)`
+- Añadido dominio `memelist.vercel.app` en Authentication → Dominios autorizados
+- Añadido `https://memelist.vercel.app` en Orígenes JS autorizados de Google Cloud OAuth
+- Añadido `https://memelist.vercel.app/__/auth/handler` en URIs de redireccionamiento autorizados
+- Modificado `src/firebase.ts`: reemplazado `import firebaseConfig from '../firebase-applet-config.json'` por config embebida directamente en el código
+
+### ✅ RESUELTO — Compartir listas por email no funcionaba (permission-denied silencioso)
+**Problema:** Al añadir un correo en Ajustes de una lista, `sharedWith` se guardaba correctamente en Firestore (verificado en consola), pero la persona invitada nunca veía la lista. El panel de diagnóstico integrado en la app mostraba siempre `permission-denied: Missing or insufficient permissions` para la query de listas compartidas, aunque el email autenticado coincidía exactamente (verificado carácter a carácter) con el guardado en `sharedWith`.
+
+**Causa raíz real (comportamiento oficial y documentado de Firestore, no un bug de código):**
+En una consulta `list`/de colección, Firestore exige que el propio filtro `.where()` de la consulta del cliente demuestre por sí solo que se cumple la condición de la regla — **no evalúa la regla contra los datos reales de cada documento para decidir si permite la consulta completa**. La app hace 2 queries separadas: una filtrada por `ownerId` (listas propias) y otra filtrada por `sharedWith array-contains email` (listas compartidas). Como la regla `allow list` tenía una única condición `ownerId == uid || email in sharedWith`, para la query de "compartidas" (que solo filtra por `sharedWith`) Firestore no podía demostrar nada sobre el campo `ownerId` referenciado en la otra rama del OR, y rechazaba la consulta entera con el error `Property ownerId is undefined on object`, camuflado como un simple `permission-denied`. Doc oficial: *"No puedes escribir una consulta para todos los documentos de una colección y esperar que Firestore devuelva solo los que el cliente tiene permiso de ver"* — el filtro debe coincidir exactamente con la condición de la regla.
+
+**Nota importante sobre el proceso de diagnóstico:** El emulador de Firestore (`@firebase/rules-unit-testing`) **no reproduce fielmente esta restricción** — varias versiones de la regla que pasaban todos los tests en el emulador local seguían fallando en producción real. El emulador es útil para detectar errores de sintaxis/lógica básica, pero no es fiable al 100% para validar reglas `list` con condiciones `OR` sobre múltiples campos: hay que probar directamente en Firebase Console/producción para tener certeza total en estos casos.
+
+**Solución aplicada:** Separar `allow list` en **dos reglas independientes** (Firestore las combina con OR automáticamente), cada una dependiendo de un único campo — coincidiendo exactamente con lo que cada query real del cliente filtra:
+```
+allow list: if isSignedIn() && resource.data.ownerId == request.auth.uid;
+allow list: if isSignedIn() && request.auth.token.email in resource.data.sharedWith;
+```
+**Nunca fusionar estas dos condiciones en una sola con `||`** — es la causa exacta del bug.
+
+**Herramientas creadas durante el diagnóstico (quedan disponibles para el futuro):**
+- Panel de diagnóstico integrado en la app (pulsar el badge ☁️ Nube / 🚀 Local en la cabecera): muestra email autenticado, UID, listas propias/compartidas encontradas, `sharedWith` de las listas visibles, y el último error real de Firestore — sin necesitar DevTools, útil para depurar desde el móvil.
+- Carpeta `rules-test/` (no versionada en git, usada de forma puntual): monta un test con el emulador de Firestore (`@firebase/rules-unit-testing`) que siembra un documento de lista real y prueba múltiples variantes de reglas contra `get`, `list` (query `array-contains`) y `update`, mostrando el mensaje de error real. Requiere Java instalado (`winget install --id EclipseAdoptium.Temurin.21.JRE -e`). Recordar su limitación: útil para detectar errores obvios, pero no concluyente para reglas `list` con OR multi-campo — la prueba definitiva es siempre producción real.
+
+
+**Problema:** El servidor backend (`server.ts`) usa Express y llama a la API de Mercadona. Vercel solo sirve frontend estático — no ejecuta servidores Node.js de esta forma. Todas las llamadas a `/api/mercadona/search` dan 404.
+
+**Causa:** Vercel necesita funciones serverless (API Routes) en lugar de un servidor Express monolítico.
+
+**Solución pendiente:** Convertir los endpoints de `server.ts` a Vercel API Routes (archivos en carpeta `/api/`).
+
+### ⚠️ PENDIENTE — Captura de imágenes y precios no funciona
+**Problema:** El apartado de captura de imágenes y precios da problemas. Pendiente de analizar en detalle una vez resuelto el problema de la API de Mercadona.
 
 ---
 
-### Próximos pasos
-1. Confirmar escritura end-to-end desde la UI (primera lista creada en el proyecto Firebase nuevo)
-2. Probar sincronización en tiempo real entre usuarios/dispositivos
-3. Refactor isValidList con hasAll()/hasOnly()
-4. Decidir si limpiar archivos duplicados de la raíz del repo
-5. Verificar deploy en Vercel del commit 62b862f y probar en memelist.vercel.app que aparecen las variantes (ej. las 4 de "Aceite de oliva virgen extra Hacendado")
-6. Si se quiere usar `format` en la búsqueda: propagarlo en popup.js → Firestore → export-catalog.mjs → catalog.json
+## Archivos modificados
 
----
-
-### Config crítica
-| Clave | Valor |
+| Archivo | Cambio |
 |---|---|
-| Firebase Project ID | memelist-95059 |
-| Auth domain | memelist-95059.firebaseapp.com |
-| Cuenta Firebase | miloco3d@gmail.com |
-| Extensión | E:\memelist-extension — Brave/Chrome, captura tienda.mercadona.es → mercadona_catalog. Selectores: [data-testid="product-cell"|"product-cell-name"|"product-price"|"open-product-detail"] |
-| Extensión: API Key sync | Se pega manualmente en popup, Firebase Console → memelist-95059 → ⚙️ Configuración del proyecto → General → Tus apps → apiKey. Persiste en chrome.storage.local entre sesiones |
-| Catálogo | 4272 productos, public/catalog.json (commit 62b862f, 2026-07-02) |
-| Export catálogo | node scripts/export-catalog.mjs → public/catalog.json (sin dedup por nombre) |
-| Wipe catálogo Firestore | node scripts/wipe-catalog.mjs (borra todos los docs de mercadona_catalog vía REST, paginado) — usar con cuidado, solo si hay que resincronizar desde cero |
+| `src/firebase.ts` | Config Firebase embebida directamente, apunta a `memelist-95059` |
+| `src/hooks/useShoppingData.ts` | Construcción limpia de `firestoreItem` sin campos undefined; `updateList` relanza errores en vez de tragarlos en silencio |
+| `firestore.rules` | `isValidItem` acepta campos opcionales `addedByName` e `imageUrl`; `allow list` separado en 2 reglas (una por `ownerId`, otra por `sharedWith`) para arreglar el bug de listas compartidas |
+| `src/App.tsx` | `activeSettingsListId` (antes objeto fijo) para que el diálogo de ajustes siempre lea la lista en vivo; badge ☁️/🚀 pulsable con panel de diagnóstico |
+| `src/components/ListSettingsDialog.tsx` | Muestra alertas si falla el guardado del nombre o al compartir/quitar un email |
+
+---
+
+## Herramientas instaladas durante el proceso
+- **Node.js** — instalado desde nodejs.org (necesario para npm)
+- **Firebase CLI** — `npm install -g firebase-tools` (tras activar `Set-ExecutionPolicy RemoteSigned`)
+- **Git** — instalado para VS Code
+- Git configurado con: `git config --global user.name "Miguel"` y `git config --global user.email "miloco3d@gmail.com"`
+
+---
+
+## Próximos pasos recomendados
+1. Aplicar reglas `firestore.rules` corregidas al nuevo proyecto Firebase
+2. Convertir `server.ts` a Vercel API Routes para que funcione la búsqueda de Mercadona
+3. Revisar y arreglar el apartado de captura de imágenes y precios
+4. Probar sincronización en tiempo real entre varios usuarios/dispositivos
