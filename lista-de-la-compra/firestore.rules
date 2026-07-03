@@ -50,18 +50,6 @@ service cloud.firestore {
         && data.addedBy is string;
     }
 
-    // Probado y validado con el emulador de Firestore (julio 2026).
-    // IMPORTANTE: NO añadir comprobaciones extra como `!= null`, `is list` o `'email' in token`
-    // encadenadas con && antes del `in` dentro de `allow list`. Firestore falla con
-    // "Property X is undefined on object" al evaluar consultas `list` con esas combinaciones,
-    // aunque el documento real sí tenga el campo. Mantener la condición simple: `email in sharedWith`.
-    function hasReadAccessList(listDoc) {
-      return isSignedIn() && listDoc != null && (
-        listDoc.ownerId == request.auth.uid ||
-        request.auth.token.email in listDoc.sharedWith
-      );
-    }
-
     function hasWriteAccessList(listDoc) {
       return isSignedIn() && listDoc != null && (
         listDoc.ownerId == request.auth.uid ||
@@ -72,7 +60,8 @@ service cloud.firestore {
     function hasReadAccessListId(listId) {
       return isSignedIn() && (
         !exists(/databases/$(database)/documents/lists/$(listId)) ||
-        hasReadAccessList(get(/databases/$(database)/documents/lists/$(listId)).data)
+        (get(/databases/$(database)/documents/lists/$(listId)).data.ownerId == request.auth.uid ||
+         request.auth.token.email in get(/databases/$(database)/documents/lists/$(listId)).data.sharedWith)
       );
     }
 
@@ -81,11 +70,20 @@ service cloud.firestore {
     }
 
     match /lists/{listId} {
-      allow get: if hasReadAccessList(existing());
-      allow list: if isSignedIn() && (
+      allow get: if isSignedIn() && (
         resource.data.ownerId == request.auth.uid ||
         request.auth.token.email in resource.data.sharedWith
       );
+
+      // IMPORTANTE (documentado oficialmente por Firebase): en una consulta 'list',
+      // el filtro where() del cliente debe coincidir exactamente con la condición de
+      // la regla. Por eso van SEPARADAS: la query de "mis listas" filtra por ownerId,
+      // la query de "listas compartidas" filtra por sharedWith. Un único OR mezclando
+      // ambos campos hace que Firestore rechace la consulta entera con
+      // "Property ownerId is undefined", aunque el documento real sí lo tenga.
+      // NO fusionar estas dos líneas en una sola con "||".
+      allow list: if isSignedIn() && resource.data.ownerId == request.auth.uid;
+      allow list: if isSignedIn() && request.auth.token.email in resource.data.sharedWith;
 
       allow create: if isEmailVerified()
         && isValidId(listId)
