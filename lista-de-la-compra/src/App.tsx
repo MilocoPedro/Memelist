@@ -313,6 +313,7 @@ export default function App() {
               <h3 className="font-bold text-sm text-slate-800">🔍 Diagnóstico</h3>
               <button onClick={() => setShowDebugPanel(false)} className="text-slate-400 text-lg leading-none cursor-pointer">✕</button>
             </div>
+            <div className="text-[10px] text-slate-300 font-bold">BUILD: 2026-07-03-v2 (commit 6b33cb0)</div>
             <div><span className="text-slate-400">Modo:</span> {isLocalMode ? '🚀 Local (NO sincroniza)' : '☁️ Nube (Firebase)'}</div>
             <div><span className="text-slate-400">Email autenticado:</span> "{activeUser?.email || '(ninguno)'}"</div>
             <div><span className="text-slate-400">Longitud del email:</span> {activeUser?.email?.length ?? 0} caracteres</div>
