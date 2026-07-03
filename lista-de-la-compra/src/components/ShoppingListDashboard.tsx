@@ -278,11 +278,11 @@ export const ShoppingListDashboard: React.FC<ShoppingListDashboardProps> = ({
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 max-h-[600px] overflow-y-auto pr-1">
-              {mercadonaResults.map((prod) => {
+              {mercadonaResults.map((prod, prodIndex) => {
                 const isAlreadyAdded = items.some(i => i.name.toLowerCase() === prod.name.toLowerCase() && !i.checked);
                 return (
                   <div
-                    key={prod.name}
+                    key={`${prodIndex}-${prod.name}-${prod.price}`}
                     className={`flex items-center gap-2.5 p-2 rounded-2xl border transition ${
                       isAlreadyAdded ? 'bg-pink-50/40 border-pink-200' : 'bg-slate-50/50 hover:bg-white hover:border-slate-300 border-slate-200 shadow-2xs'
                     }`}
