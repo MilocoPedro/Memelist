@@ -60,12 +60,21 @@ allow list: if isSignedIn() && request.auth.token.email in resource.data.sharedW
 - Panel de diagnóstico integrado en la app (pulsar el badge ☁️ Nube / 🚀 Local en la cabecera): muestra email autenticado, UID, listas propias/compartidas encontradas, `sharedWith` de las listas visibles, y el último error real de Firestore — sin necesitar DevTools, útil para depurar desde el móvil.
 - Carpeta `rules-test/` (no versionada en git, usada de forma puntual): monta un test con el emulador de Firestore (`@firebase/rules-unit-testing`) que siembra un documento de lista real y prueba múltiples variantes de reglas contra `get`, `list` (query `array-contains`) y `update`, mostrando el mensaje de error real. Requiere Java instalado (`winget install --id EclipseAdoptium.Temurin.21.JRE -e`). Recordar su limitación: útil para detectar errores obvios, pero no concluyente para reglas `list` con OR multi-campo — la prueba definitiva es siempre producción real.
 
+### ✅ RESUELTO — Búsqueda de productos acumulaba resultados en vez de reemplazarlos
+**Problema:** Al buscar un producto (ej. "leche") y luego buscar otro distinto (ej. "sal") sin recargar la página, los resultados de la búsqueda anterior seguían visibles en la cuadrícula, mezclados con los nuevos, en vez de desaparecer.
 
-**Problema:** El servidor backend (`server.ts`) usa Express y llama a la API de Mercadona. Vercel solo sirve frontend estático — no ejecuta servidores Node.js de esta forma. Todas las llamadas a `/api/mercadona/search` dan 404.
+**Causa raíz real (confirmada reproduciendo con Playwright + navegador real, no solo lectura de código):** El estado de React (`mercadonaResults`) SÍ se reemplazaba correctamente en cada búsqueda (verificado con logs: 50 → 49 resultados, nunca acumulados). El bug estaba en la reconciliación del DOM: el `.map()` de resultados usaba `key={prod.name}`, pero el catálogo (`catalog.json`) tiene **261 nombres de producto duplicados** (mismo producto en distintos tamaños/precios, ej. "Leche entera Hacendado" x5). Con `key` repetida, React puede fallar al reconciliar el DOM entre un render y el siguiente, dejando elementos "fantasma" de la búsqueda anterior sin eliminar del DOM aunque ya no estén en el estado.
 
-**Causa:** Vercel necesita funciones serverless (API Routes) en lugar de un servidor Express monolítico.
+**Lección de proceso:** Cuando el estado de React parece correcto (confirmado con logs) pero la UI no lo refleja, sospechar de bugs de reconciliación por `key` duplicada o inestable, no seguir buscando en la lógica de datos.
 
-**Solución pendiente:** Convertir los endpoints de `server.ts` a Vercel API Routes (archivos en carpeta `/api/`).
+**Solución aplicada:** Cambiar la key a `${prodIndex}-${prod.name}-${prod.price}` (combinación única por posición + nombre + precio) en `src/components/ShoppingListDashboard.tsx`.
+
+**Herramienta de diagnóstico usada:** Playwright (ya disponible en el entorno) para levantar `npm run dev` (sirve en `localhost:3000` vía `server.ts`/Express en modo desarrollo con Vite middleware) y automatizar búsquedas reales en un navegador, con logs de consola capturados — permite reproducir bugs de UI con certeza en vez de solo leer el código estáticamente. Nota: `memelist.vercel.app` no es accesible directamente desde este entorno (dominio no permitido en la red del sandbox), por eso se reprodujo contra un servidor local con el mismo código fuente exacto del repo.
+
+### ✅ RESUELTO — API de Mercadona daba 404 en Vercel
+**Problema histórico:** El servidor backend (`server.ts`) usaba Express y llamaba a la API de Mercadona en vivo. Vercel solo sirve frontend estático — no ejecuta servidores Node.js de esta forma. Todas las llamadas a `/api/mercadona/search` daban 404.
+
+**Solución aplicada:** Se abandonó la búsqueda en vivo contra la API de Mercadona. Ahora la búsqueda es 100% client-side desde `/public/catalog.json` (capturado con la extensión de Chrome/Brave y regenerado con `node scripts/export-catalog.mjs`), sin necesidad de ningún endpoint ni servidor en producción. `server.ts` solo se usa localmente en desarrollo (`npm run dev`, sirve en `localhost:3000`).
 
 ### ⚠️ PENDIENTE — Captura de imágenes y precios no funciona
 **Problema:** El apartado de captura de imágenes y precios da problemas. Pendiente de analizar en detalle una vez resuelto el problema de la API de Mercadona.
@@ -81,6 +90,7 @@ allow list: if isSignedIn() && request.auth.token.email in resource.data.sharedW
 | `firestore.rules` | `isValidItem` acepta campos opcionales `addedByName` e `imageUrl`; `allow list` separado en 2 reglas (una por `ownerId`, otra por `sharedWith`) para arreglar el bug de listas compartidas |
 | `src/App.tsx` | `activeSettingsListId` (antes objeto fijo) para que el diálogo de ajustes siempre lea la lista en vivo; badge ☁️/🚀 pulsable con panel de diagnóstico |
 | `src/components/ListSettingsDialog.tsx` | Muestra alertas si falla el guardado del nombre o al compartir/quitar un email |
+| `src/components/ShoppingListDashboard.tsx` | Key única (`indice-nombre-precio`) en resultados de búsqueda, evita productos fantasma con nombres duplicados del catálogo |
 
 ---
 
